@@ -319,7 +319,7 @@ function bigNum(n, unit) {
 
 function fresh() {
   return { cash: START_CASH, startCash: START_CASH, holdings: {},trades: [], prices: {}, volume: {}, sel: STOCKS[0].code,
-    tab: 'ALL', sort: 'amount', page: 'browse', recent: [], orders: [] };
+    tab: 'ALL', sort: 'amount', page: 'browse', recent: [], orders: [], realized: [] };
 }
 
 let state;
@@ -328,6 +328,7 @@ if (!state || !state.prices) state = fresh();
 state.page ||= 'browse';
 state.sort ||= 'amount';
 state.recent ||= [];
+state.realized ||= []; // 판매 수익 기록
 state.volume ||= {};
 // 기본금이 바뀌면 차액만큼 현금을 맞춰 줌 (보유 주식·거래 내역은 유지)
 if (state.startCash !== START_CASH) {
@@ -585,6 +586,12 @@ function fill(side, code, n, p) {
     h.avg = (h.avg * h.qty + p * n) / (h.qty + n);
     h.qty += n;
   } else {
+    // 판매 수익 = (판 가격 − 평균 매입가) × 수량, 원화 기준
+    if (h.avg > 0) {
+      state.realized.unshift({ t: Date.now(), code, name: info(code).name, mk: info(code).mk, n,
+        pnl: toKRW(code, p - h.avg) * n, cost: toKRW(code, h.avg) * n });
+      state.realized = state.realized.slice(0, 300);
+    }
     h.qty -= n;
     state.cash += toKRW(code, p) * n;
   }
@@ -1083,6 +1090,44 @@ window.addEventListener('popstate', () => {
   if (document.body.classList.contains('detail-open')) closeDetail();
 });
 
+// 판매 수익: 날짜별로 묶고, 그날 국내·해외 합계 + 종목별 수익 (토스 판매수익 화면처럼)
+function renderRealized() {
+  const list = state.realized;
+  const sign = n => (n > 0 ? '+' : n < 0 ? '-' : '');
+  const amt = n => sign(n) + Math.round(Math.abs(n)).toLocaleString('ko-KR') + '원';
+  const rate = (pnl, cost) => (cost ? Math.abs(pnl / cost * 100).toFixed(2).replace(/\.?0+$/, '') : '0') + '%';
+  const total = list.reduce((a, r) => a + r.pnl, 0), totalCost = list.reduce((a, r) => a + r.cost, 0);
+  $('r-total').innerHTML = list.length ? `총 판매 수익 <b class="${cls(total)}">${amt(total)} (${sign(total)}${rate(total, totalCost)})</b>` : '';
+  if (!list.length) { $('realized').innerHTML = '<p class="muted">아직 판 주식이 없습니다. 주식을 팔면 여기에 수익이 쌓여요.</p>'; return; }
+  // 날짜별 묶기 (최근 날짜부터)
+  const days = new Map();
+  for (const r of list) {
+    const d = new Date(r.t), key = d.toDateString();
+    if (!days.has(key)) days.set(key, { d, rows: [] });
+    days.get(key).rows.push(r);
+  }
+  $('realized').innerHTML = [...days.values()].map(({ d, rows }) => {
+    const title = `${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`;
+    const sums = ['KR', 'US'].map(mk => {
+      const rs = rows.filter(r => r.mk === mk);
+      if (!rs.length) return '';
+      const p = rs.reduce((a, r) => a + r.pnl, 0), c = rs.reduce((a, r) => a + r.cost, 0);
+      return `<p class="r-sum">${mk === 'KR' ? '국내주식' : '해외주식'} <span class="${cls(p)}">${amt(p)} (${rate(p, c)})</span></p>`;
+    }).join('');
+    // 같은 날 같은 종목은 합쳐서 한 줄
+    const by = new Map();
+    for (const r of rows) {
+      const o = by.get(r.code) || { code: r.code, name: r.name, pnl: 0, cost: 0 };
+      o.pnl += r.pnl; o.cost += r.cost; by.set(r.code, o);
+    }
+    const items = [...by.values()].map(o => `<li data-code="${o.code}">
+        ${logoHTML(o.code)}<span class="r-name">${o.name}</span>
+        <span class="r-val ${cls(o.pnl)}"><b>${amt(o.pnl)}</b><small>${rate(o.pnl, o.cost)}</small></span>
+      </li>`).join('');
+    return `<div class="r-day"><h3>${title}</h3>${sums}<ul class="r-list">${items}</ul></div>`;
+  }).join('');
+}
+
 function fillList(el, html) {
   el.innerHTML = html;
   el.querySelectorAll('li').forEach(li => {
@@ -1153,6 +1198,7 @@ function render() {
       ? state.trades.map(t => `<li><span><b class="${t.side === 'buy' ? 'up' : 'down'}">${t.side === 'buy' ? '매수' : '매도'}</b> ${t.name} ${t.n}주</span>
           <span class="muted">${px(t.code, t.p)} · ${new Date(t.t).toLocaleTimeString('ko-KR')}</span></li>`).join('')
       : '<li class="muted">거래 내역이 없습니다.</li>';
+    renderRealized();
   }
 
   // 선택 종목
@@ -1202,7 +1248,7 @@ document.querySelectorAll('.ranges button').forEach(b =>
 // 차트 종류 (라인 / 캔들)
 document.querySelectorAll('.chart-type button').forEach(b =>
   b.addEventListener('click', () => { state.chart = b.dataset.ct; save(); render(); }));
-for (const id of ['browse-list', 'recent-list', 'hold-list'])
+for (const id of ['browse-list', 'recent-list', 'hold-list', 'realized'])
   $(id).addEventListener('click', e => { const li = e.target.closest('li'); if (li) select(li.dataset.code); });
 document.querySelectorAll('.nav button').forEach(b =>
   b.addEventListener('click', () => { state.page = b.dataset.page; save(); render(); }));
