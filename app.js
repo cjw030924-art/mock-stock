@@ -432,7 +432,7 @@ function memeEvent(s, mode, P) {
     crash:  { left: pick([5, 5]),   drift: -pick(P.crash),        say: `💥 [${s.name}] 폭락! 매물 폭탄` },
   }[mode];
   meme[s.code] = { mode, left: Math.floor(E.left), drift: E.drift };
-  toast(E.say);
+  // (급등·급락 알림은 띄우지 않음)
 }
 function memeDrift(s) {
   const P = MEME[s.meme === 'extreme' ? 'extreme' : 'normal'];
@@ -470,8 +470,7 @@ function step(s) {
   if (!s.lite && Math.random() < 0.0015) { // 뉴스 알림은 직접 넣은 종목만 (종목이 많아 알림이 넘치지 않게)
     const good = Math.random() < 0.5;
     r += (good ? 1 : -1) * (0.02 + Math.random() * 0.03);
-    const pool = good ? NEWS_UP : NEWS_DOWN;
-    toast(`[${s.name}] ${pool[Math.floor(Math.random() * pool.length)]}`);
+    // (뉴스 알림은 띄우지 않고 가격에만 반영)
   }
   if (s.meme) r += memeDrift(s);
   const h = state.prices[s.code].hist;
@@ -604,11 +603,11 @@ function placeOrder(side, code, n, price) {
     if (price >= cur) {
       state.cash -= toKRW(code, cur) * n;
       fill('buy', code, n, cur);
-      msg(`${name} ${n}주 매수 체결 (${px(code, cur)})`);
+      done(`✅ ${name} ${n}주 매수 체결 (${px(code, cur)})`);
     } else {
       state.cash -= toKRW(code, price) * n;
       state.orders.push({ id: Date.now() + Math.random(), side, code, n, price, t: Date.now() });
-      msg(`${name} ${n}주 ${px(code, price)} 매수 주문 접수 · 가격이 오면 체결됩니다`);
+      done(`📝 ${name} ${n}주 ${px(code, price)} 매수 주문 접수 · 가격이 오면 체결됩니다`);
     }
   } else {
     if (n > sellable(code)) {
@@ -618,10 +617,10 @@ function placeOrder(side, code, n, price) {
     }
     if (price <= cur) {
       fill('sell', code, n, cur);
-      msg(`${name} ${n}주 매도 체결 (${px(code, cur)})`);
+      done(`✅ ${name} ${n}주 매도 체결 (${px(code, cur)})`);
     } else {
       state.orders.push({ id: Date.now() + Math.random(), side, code, n, price, t: Date.now() });
-      msg(`${name} ${n}주 ${px(code, price)} 매도 주문 접수 · 가격이 오면 체결됩니다`);
+      done(`📝 ${name} ${n}주 ${px(code, price)} 매도 주문 접수 · 가격이 오면 체결됩니다`);
     }
   }
   save();
@@ -724,7 +723,7 @@ function submitOrder() {
   const err = placeOrder(ed.side, ed.code, moQty(), moPrice());
   if (err) { state.cash = before.cash; state.orders = before.orders; $('mo-err').textContent = err; render(); return; }
   // 수정 가격이 바로 체결 가능한 가격이면 placeOrder 의 "체결" 안내를 그대로 둠
-  if (state.orders.length > pending) msg(`${info(ed.code).name} 주문을 수정했습니다. (${moQty()}주 · ${px(ed.code, moPrice())})`);
+  if (state.orders.length > pending) done(`📝 ${info(ed.code).name} 주문을 수정했습니다. (${moQty()}주 · ${px(ed.code, moPrice())})`);
   closeOrder();
 }
 
@@ -737,6 +736,8 @@ function msg(text, err) {
   msgTimer = setTimeout(() => (el.textContent = ''), 3000);
 }
 let toastTimer;
+// 매수·매도 성공 알림: 화면 아래 알림 + 상세 화면 안내 둘 다
+function done(text) { msg(text); toast(text); }
 function toast(text) {
   const el = $('toast');
   el.textContent = text;
