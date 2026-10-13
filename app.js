@@ -618,11 +618,11 @@ function ordersHTML(list) {
   return list.map(o => `<li>
       <span><b class="${o.side === 'buy' ? 'up' : 'down'}">${o.side === 'buy' ? '매수' : '매도'}</b> ${info(o.code).name}
         <small class="muted">${o.n}주 · ${px(o.code, o.price)}</small></span>
-      <span class="o-btns"><button class="cancel-btn" data-edit="${o.id}">정정</button><button class="cancel-btn" data-cancel="${o.id}">취소</button></span>
+      <span class="o-btns"><button class="cancel-btn" data-edit="${o.id}">수정</button><button class="cancel-btn" data-cancel="${o.id}">취소</button></span>
     </li>`).join('');
 }
 
-// 미체결 주문 정정: 그 주문의 가격·수량이 채워진 주문 창을 열고, 내면 원래 주문을 바꿔 줌
+// 미체결 주문 수정: 그 주문의 가격·수량이 채워진 주문 창을 열고, 내면 원래 주문을 바꿔 줌
 function editOrder(id) {
   const o = state.orders.find(x => x.id === id);
   if (!o) return;
@@ -653,13 +653,13 @@ function renderOrder() {
   $('modal').className = 'modal ' + (buy ? 'is-buy' : 'is-sell');
   document.querySelectorAll('.mo-side button').forEach(b => b.classList.toggle('on', b.dataset.side === side));
   const ed = order.edit;
-  $('mo-title').textContent = info(code).name + (ed ? ' 주문 정정' : '');
+  $('mo-title').textContent = info(code).name + (ed ? ' 주문 수정' : '');
   $('mo-price').textContent = `현재가 ${px(code, cur)}${isUS(code) ? ` · 환율 ${FX.toLocaleString('ko-KR')}원` : ''}`
     + (ed ? ` · 원래 주문 ${ed.n}주 ${px(code, ed.price)}` : '');
   $('mo-unit').textContent = isUS(code) ? '$' : '원';
   $('mo-max').textContent = buy ? '최대 매수' : '전부 매도';
-  $('mo-ok').textContent = ed ? '정정하기' : buy ? '매수 주문' : '매도 주문';
-  document.querySelector('.mo-side').hidden = !!ed; // 정정할 때는 매수/매도 방향은 그대로
+  $('mo-ok').textContent = ed ? '수정하기' : buy ? '매수 주문' : '매도 주문';
+  document.querySelector('.mo-side').hidden = !!ed; // 수정할 때는 매수/매도 방향은 그대로
   // 바로 체결되는지, 언제 체결되는지 안내
   const now = buy ? p >= cur : p <= cur;
   $('mo-hint').textContent = !p ? '' : now
@@ -679,15 +679,15 @@ function submitOrder() {
     if (err) $('mo-err').textContent = err; else closeOrder();
     return;
   }
-  // 정정: 원래 주문을 잠시 빼고(묶인 현금 돌려받음) 새 조건으로 다시 냄. 실패하면 원래대로 되돌림
+  // 수정: 원래 주문을 잠시 빼고(묶인 현금 돌려받음) 새 조건으로 다시 냄. 실패하면 원래대로 되돌림
   const before = { cash: state.cash, orders: state.orders.slice() };
   if (ed.side === 'buy') state.cash += toKRW(ed.code, ed.price) * ed.n;
   state.orders = state.orders.filter(x => x.id !== ed.id);
   const pending = state.orders.length;
   const err = placeOrder(ed.side, ed.code, moQty(), moPrice());
   if (err) { state.cash = before.cash; state.orders = before.orders; $('mo-err').textContent = err; render(); return; }
-  // 정정 가격이 바로 체결 가능한 가격이면 placeOrder 의 "체결" 안내를 그대로 둠
-  if (state.orders.length > pending) msg(`${info(ed.code).name} 주문을 정정했습니다. (${moQty()}주 · ${px(ed.code, moPrice())})`);
+  // 수정 가격이 바로 체결 가능한 가격이면 placeOrder 의 "체결" 안내를 그대로 둠
+  if (state.orders.length > pending) msg(`${info(ed.code).name} 주문을 수정했습니다. (${moQty()}주 · ${px(ed.code, moPrice())})`);
   closeOrder();
 }
 
