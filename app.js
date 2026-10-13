@@ -245,7 +245,7 @@ const STOCKS = [
   // 가상의 국내 대형주 (JH증권 계열). 거래대금 24.5억 → 국내 거래대금 10위 안팎에서 시작
   { code: '999550', mk: 'KR', name: 'JH전자', price: 87400, vol: 0.006, rate: 3.24, amt: 24.5, fake: true },
   // 가상의 고배율 레버리지 ETF: 기초 종목(track)이 움직인 비율 × lev 만큼 움직임. 시작 등락률도 기초 종목 × 배수
-  { code: 'NQTX', sub: 'ETF', mk: 'US', name: 'JH 나스닥100 10배 ETF', price: 18.40, vol: 0.02, rate: -6.8, amt: 0.72, track: 'QQQ', lev: 10, fake: true },
+  { code: 'NQTX', sub: 'ETF', mk: 'US', name: 'JH 나스닥100 10배 ETF', price: 13.85, vol: 0.03, rate: -29.4, amt: 0.72, track: 'QQQ', lev: 10, wild: true, fake: true }, // wild: 상승장·하락장이 크게 얹힘
   { code: 'SPFV', sub: 'ETF', mk: 'US', name: 'JH S&P500 5배 ETF', price: 42.15, vol: 0.01, rate: -0.75, amt: 0.38, track: 'VOO', lev: 5, fake: true },
   { code: 'NVDT', sub: 'ETF', mk: 'US', name: 'JH 엔비디아 3배 ETF', price: 61.30, vol: 0.018, rate: -2.94, amt: 0.55, track: 'NVDA', lev: 3, fake: true },
 ];
@@ -453,11 +453,28 @@ function memeDrift(s) {
   return 0;
 }
 
+// 초고변동(wild) 종목: 2~6분씩 이어지는 상승장/하락장이 얹힘
+//  - 0% 근처(±15%)에서는 가던 방향을 유지해 급상승·급하락 순위 위쪽에 머물게 하고
+//  - +80% 넘거나 −60% 밑이면 반대로 꺾음
+const wild = {}; // code -> { up, left, drift }
+function wildDrift(s) {
+  let w = wild[s.code];
+  if (!w || --w.left <= 0) {
+    const ch = change(s.code);
+    let up = Math.random() < 0.5;
+    if (ch > 80) up = false;
+    else if (ch < -60) up = true;
+    else if (w && Math.abs(ch) < 15) up = w.up;
+    w = wild[s.code] = { up, left: 30 + Math.floor(Math.random() * 60), drift: 0.008 + Math.random() * 0.012 };
+  }
+  return (w.up ? 1 : -1) * w.drift * (0.4 + Math.random() * 1.2);
+}
+
 function step(s) {
   // 가상 고배율 ETF: 이번에 기초 종목이 움직인 비율 × 배수 (+ 아주 작은 괴리)
   if (s.track) {
     const u = state.prices[s.track].hist, ur = u.length > 1 ? u[u.length - 1] / u[u.length - 2] - 1 : 0;
-    const r = s.lev * ur + (Math.random() - 0.5) * 0.001;
+    const r = s.lev * ur + (Math.random() - 0.5) * 0.001 + (s.wild ? wildDrift(s) : 0);
     const h = state.prices[s.code].hist;
     h.push(Math.max(0.0001, round(s.code, last(s.code) * Math.max(0.01, 1 + r))));
     if (h.length > HIST_LEN) h.shift();
