@@ -234,6 +234,10 @@ main {
 .chart-type { display: flex; justify-content: flex-end; gap: 4px; margin: 4px 0 6px; }
 .chart-type button { background: var(--bg); color: var(--muted); padding: 5px 12px; font-size: 13px; font-weight: 600; }
 .chart-type button.on { background: var(--text); color: var(--panel); }
+/* 차트 기간 버튼 (토스처럼 차트 아래) */
+.ranges { display: flex; justify-content: space-between; gap: 4px; margin: 8px 0 2px; }
+.ranges button { flex: 1; background: none; color: var(--muted); padding: 8px 0; font-size: 14px; font-weight: 600; }
+.ranges button.on { background: var(--bg); color: var(--text); font-weight: 700; }
 .mo-side button { background: none; color: var(--muted); padding: 7px 16px; font-weight: 700; }
 .is-buy .mo-side [data-side=buy] { background: var(--up); color: #fff; }
 .is-sell .mo-side [data-side=sell] { background: var(--down); color: #fff; }

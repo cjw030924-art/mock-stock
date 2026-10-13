@@ -339,7 +339,10 @@ function save() {
   try {
     const keep = new Set([state.sel, ...state.recent, ...Object.keys(state.holdings), ...(state.orders || []).map(o => o.code)]);
     const pick = obj => Object.fromEntries(Object.entries(obj).filter(([c]) => { const s = info(c); return s && (!s.lite || keep.has(c)); }));
-    localStorage.setItem(KEY, JSON.stringify({ ...state, prices: pick(state.prices), volume: pick(state.volume) }));
+    // 1분 기록(m)은 내가 본·보유·주문한 종목만, 최근 8시간분만 저장 (나머지는 다음에 다시 만듦)
+    const prices = Object.fromEntries(Object.entries(pick(state.prices)).map(([c, p]) =>
+      [c, p.m && keep.has(c) ? { ...p, m: p.m.slice(-480) } : { ...p, m: undefined, mt: undefined }]));
+    localStorage.setItem(KEY, JSON.stringify({ ...state, prices, volume: pick(state.volume) }));
   } catch {}
 }
 
@@ -457,6 +460,7 @@ function step(s) {
     const h = state.prices[s.code].hist;
     h.push(Math.max(0.0001, round(s.code, last(s.code) * Math.max(0.01, 1 + r))));
     if (h.length > HIST_LEN) h.shift();
+    recordMinute(s.code);
     addVolume(s.code, r);
     return;
   }
@@ -473,7 +477,40 @@ function step(s) {
   const h = state.prices[s.code].hist;
   h.push(Math.max(isUS(s.code) ? 0.0001 : 1, round(s.code, last(s.code) * (1 + r))));
   if (h.length > HIST_LEN) h.shift();
+  recordMinute(s.code);
   addVolume(s.code, r);
+}
+
+// 1분 기록: 종목마다 [시가, 고가, 저가, 종가] 1분봉을 쌓음 (차트의 1분·10분·1시간·전체 보기용)
+//  - 처음 볼 때 장 시작(전일 종가)부터 지금까지 6시간분을 만들어 두고, 이후로는 실제 움직임대로 쌓임
+const MIN_KEEP = 1440, nowMin = () => Math.floor(Date.now() / 60000);
+function recordMinute(code) {
+  const p = state.prices[code];
+  if (!p.m) return;
+  const v = last(code), t = nowMin();
+  if (p.mt !== t) {
+    const o = p.m.length ? p.m[p.m.length - 1][3] : v;
+    p.m.push([o, Math.max(o, v), Math.min(o, v), v]);
+    p.mt = t;
+    if (p.m.length > MIN_KEEP) p.m.shift();
+  } else {
+    const b = p.m[p.m.length - 1];
+    b[1] = Math.max(b[1], v); b[2] = Math.min(b[2], v); b[3] = v;
+  }
+}
+function ensureMinutes(code) {
+  ensureHist(code);
+  const p = state.prices[code];
+  if (p.m && p.m.length) return;
+  const s = info(code), N = 360;
+  // 1분은 시세 약 15번이라 한 칸 변동폭을 크게
+  const closes = makeHist({ ...s, vol: s.vol * 3 }, p.open, last(code), N + 1);
+  p.m = [];
+  for (let i = 1; i <= N; i++) {
+    const o = i === 1 ? p.open : closes[i - 1], c = closes[i], wig = Math.abs(c - o) * 0.6 + o * s.vol * 1.5;
+    p.m.push([o, round(code, Math.max(o, c) + wig * Math.random()), round(code, Math.max(0.0001, Math.min(o, c) - wig * Math.random())), c]);
+  }
+  p.mt = nowMin();
 }
 // 호가 (모의). 호가 단위는 한국거래소 규칙, 해외는 $0.01
 const BOOK_LV = 7;
@@ -722,7 +759,8 @@ function draw(canvas, data, color, full) {
   if (min === max) { min *= 0.999; max *= 1.001; }
   const x = i => pad + (i / (data.length - 1)) * (w - pad * 2);
   const y = v => pad + (1 - (v - min) / (max - min)) * (h - pad * 2);
-  if (full) chartGeom = { n: data.length, x, y, val: i => data[i], per: 1 }; // 짚어 보기용
+  if (full) chartGeom = { n: data.length, x, y, val: i => data[i], sec: typeof full === 'number' ? full : 4, // 짚어 보기용 (sec: 점 하나의 시간)
+    seg: i => (i > 0 ? (data[i] / data[i - 1] - 1) * 100 : 0) };
   ctx.beginPath();
   data.forEach((v, i) => (i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v))));
   ctx.strokeStyle = color;
@@ -756,12 +794,14 @@ function drawCrosshair() {
   ctx.setLineDash([]);
   ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = css('--panel'); ctx.lineWidth = 2; ctx.stroke();
-  // 라벨: 가격 · 등락률 · 몇 분 전 (시세는 평균 4초마다 움직임)
-  const ago = (g.n - 1 - i) * g.per * 4;
-  const when = ago < 5 ? '지금' : ago < 60 ? `${ago}초 전` : `${Math.floor(ago / 60)}분 ${ago % 60 ? (ago % 60) + '초 ' : ''}전`;
-  // 그 지점에서 지금(현재가)까지 몇 % 움직였는지 = 그때 샀다면 지금 수익률
-  const since = (last(c) / v - 1) * 100, sinceCol = since >= 0 ? css('--up') : css('--down');
-  const t1 = px(c, v), t2 = `전일 대비 ${pct(ch)} · ${when}`, t3 = ago < 5 ? '' : `여기서 지금까지 ${pct(since)}`;
+  // 라벨: 가격 · 등락률 · 얼마 전 (점·봉 하나의 시간 g.sec 기준)
+  const ago = (g.n - 1 - i) * g.sec;
+  const when = ago < 5 ? '지금' : ago < 60 ? `${ago}초 전`
+    : ago < 3600 ? `${Math.floor(ago / 60)}분 ${ago % 60 ? (ago % 60) + '초 ' : ''}전`
+    : `${Math.floor(ago / 3600)}시간 ${Math.floor(ago % 3600 / 60) ? Math.floor(ago % 3600 / 60) + '분 ' : ''}전`;
+  // 그 구간 하나에서만 오르내린 % (캔들: 그 봉의 시가→종가, 라인: 앞 점→이 점)
+  const seg = g.seg(i), sinceCol = seg >= 0 ? css('--up') : css('--down');
+  const t1 = px(c, v), t2 = `전일 대비 ${pct(ch)} · ${when}`, t3 = `${seg > 0 ? '▲' : seg < 0 ? '▼' : '−'} ${Math.abs(seg).toFixed(2)}%`;
   ctx.font = '700 13px sans-serif'; const w1 = ctx.measureText(t1).width;
   ctx.font = '600 12px sans-serif'; const w2 = ctx.measureText(t2).width, w3 = ctx.measureText(t3).width;
   const bw = Math.max(w1, w2, w3) + 20, bh = t3 ? 62 : 44, bx = Math.min(Math.max(cx - bw / 2, 2), w - bw - 2), by = 4;
@@ -773,35 +813,63 @@ function drawCrosshair() {
   if (t3) { ctx.fillStyle = sinceCol; ctx.fillText(t3, bx + bw / 2, by + 54); }
   ctx.restore();
 }
+// 기간 버튼: 실시간(시세 하나하나, 최근 8분) · 1분 · 10분 · 1시간(그 단위로 묶은 점·봉) · 전체(오늘 전부)
+const CANDLE_PER = 4;
+const tickBars = data => {
+  const bars = [];
+  for (let i = 0; i < data.length; i += CANDLE_PER) {
+    const g = data.slice(Math.max(0, i - 1), i + CANDLE_PER); // 앞 봉의 종가에서 시작
+    bars.push({ o: g[0], c: g[g.length - 1], hi: Math.max(...g), lo: Math.min(...g) });
+  }
+  return bars;
+};
+// 1분봉 k개씩 묶기 (마지막 봉이 지금 진행 중인 봉이 되도록 뒤에서부터)
+function aggBars(m, k) {
+  const out = [];
+  for (let end = m.length; end > 0; end -= k) {
+    const g = m.slice(Math.max(0, end - k), end);
+    out.unshift({ o: g[0][0], hi: Math.max(...g.map(b => b[1])), lo: Math.min(...g.map(b => b[2])), c: g[g.length - 1][3] });
+  }
+  return out;
+}
+function series(c, tf) {
+  const p = state.prices[c];
+  if (tf === 'live' || !tf) return { closes: p.hist, sec: 4, bars: tickBars(p.hist), barSec: 4 * CANDLE_PER };
+  ensureMinutes(c);
+  const m = p.m;
+  if (tf === 'all') {
+    const k = Math.max(1, Math.ceil(m.length / 48)); // 캔들은 48개 안팎으로
+    return { closes: m.map(b => b[3]), sec: 60, bars: aggBars(m, k), barSec: k * 60 };
+  }
+  const k = { '1m': 1, '10m': 10, '1h': 60 }[tf], show = { '1m': 60, '10m': 48, '1h': 24 }[tf];
+  const bars = aggBars(m, k).slice(-show);
+  return { closes: bars.map(b => b.c), sec: k * 60, bars, barSec: k * 60 };
+}
 function redrawChart() {
-  const c = state.sel;
-  if (state.chart === 'candle') drawCandles($('chart'), state.prices[c].hist);
-  else draw($('chart'), state.prices[c].hist, lineColor(c), true);
+  const c = state.sel, S = series(c, state.tf);
+  if (state.chart === 'candle') drawCandles($('chart'), S.bars, S.barSec);
+  else draw($('chart'), S.closes, lineColor(c), S.sec);
   drawCrosshair();
+  document.querySelectorAll('.ranges button').forEach(b => b.classList.toggle('on', b.dataset.tf === (state.tf || 'live')));
 }
 
-// 캔들 차트: 시세 per개를 한 봉으로 묶어 시가·고가·저가·종가 (오르면 빨강, 내리면 파랑)
-const CANDLE_PER = 4;
-function drawCandles(canvas, data) {
+// 캔들 차트: 봉마다 시가·고가·저가·종가 (오르면 빨강, 내리면 파랑)
+function drawCandles(canvas, candles, barSec) {
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth, h = canvas.clientHeight;
   if (canvas.width !== w * dpr || canvas.height !== h * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; }
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
-  if (data.length < 2) return;
-  const candles = [];
-  for (let i = 0; i < data.length; i += CANDLE_PER) {
-    const g = data.slice(Math.max(0, i - 1), i + CANDLE_PER); // 앞 봉의 종가에서 시작
-    candles.push({ o: g[0], c: g[g.length - 1], hi: Math.max(...g), lo: Math.min(...g) });
-  }
+  if (!candles.length) return;
   const pad = 8;
   let min = Math.min(...candles.map(k => k.lo)), max = Math.max(...candles.map(k => k.hi));
   if (min === max) { min *= 0.999; max *= 1.001; }
   const slot = (w - pad * 2) / candles.length, bw = Math.max(2, slot * 0.62);
   const y = v => pad + (1 - (v - min) / (max - min)) * (h - pad * 2);
   const up = css('--up'), down = css('--down');
-  chartGeom = { n: candles.length, x: i => pad + slot * (i + 0.5), y, val: i => candles[i].c, per: CANDLE_PER, candles };
+  chartGeom = { n: candles.length, x: i => pad + slot * (i + 0.5), y, val: i => candles[i].c, sec: barSec, candles,
+    seg: i => (candles[i].c / candles[i].o - 1) * 100 };
   candles.forEach((k, i) => {
     const cx = pad + slot * (i + 0.5), col = k.c >= k.o ? up : down;
     ctx.strokeStyle = ctx.fillStyle = col;
@@ -1127,6 +1195,9 @@ document.addEventListener('click', e => {
   cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') off(); });
   cv.addEventListener('pointercancel', off);
 }
+// 차트 기간 (실시간 / 1분 / 10분 / 1시간 / 전체)
+document.querySelectorAll('.ranges button').forEach(b =>
+  b.addEventListener('click', () => { state.tf = b.dataset.tf; save(); redrawChart(); }));
 // 차트 종류 (라인 / 캔들)
 document.querySelectorAll('.chart-type button').forEach(b =>
   b.addEventListener('click', () => { state.chart = b.dataset.ct; save(); render(); }));
