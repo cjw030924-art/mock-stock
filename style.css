@@ -167,7 +167,7 @@ main {
 .detail-head h2 { margin: 0; font-size: 20px; }
 .right { text-align: right; }
 .big { font-size: 26px; display: block; }
-#chart { width: 100%; height: 260px; display: block; }
+#chart { width: 100%; height: 260px; display: block; touch-action: pan-y; cursor: crosshair; } /* 폰: 위아래 스크롤은 그대로, 좌우로 짚어 보기 */
 
 .order { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
 .order input {
@@ -228,6 +228,12 @@ main {
 /* 주문 창: 매수/매도 전환, 가격 입력 */
 .mo-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .mo-side { display: flex; background: var(--bg); border-radius: 10px; padding: 3px; flex: none; }
+.mo-side[hidden] { display: none; }
+.o-btns { display: flex; gap: 6px; flex: none; }
+/* 차트 종류 전환 (라인 / 캔들) */
+.chart-type { display: flex; justify-content: flex-end; gap: 4px; margin: 4px 0 6px; }
+.chart-type button { background: var(--bg); color: var(--muted); padding: 5px 12px; font-size: 13px; font-weight: 600; }
+.chart-type button.on { background: var(--text); color: var(--panel); }
 .mo-side button { background: none; color: var(--muted); padding: 7px 16px; font-weight: 700; }
 .is-buy .mo-side [data-side=buy] { background: var(--up); color: #fff; }
 .is-sell .mo-side [data-side=sell] { background: var(--down); color: #fff; }

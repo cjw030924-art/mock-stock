@@ -618,20 +618,26 @@ function ordersHTML(list) {
   return list.map(o => `<li>
       <span><b class="${o.side === 'buy' ? 'up' : 'down'}">${o.side === 'buy' ? '매수' : '매도'}</b> ${info(o.code).name}
         <small class="muted">${o.n}주 · ${px(o.code, o.price)}</small></span>
-      <button class="cancel-btn" data-cancel="${o.id}">취소</button>
+      <span class="o-btns"><button class="cancel-btn" data-edit="${o.id}">정정</button><button class="cancel-btn" data-cancel="${o.id}">취소</button></span>
     </li>`).join('');
 }
 
+// 미체결 주문 정정: 그 주문의 가격·수량이 채워진 주문 창을 열고, 내면 원래 주문을 바꿔 줌
+function editOrder(id) {
+  const o = state.orders.find(x => x.id === id);
+  if (!o) return;
+  openOrder(o.side, o.price, o.code, o);
+}
+
 // 주문 창
-let order = null; // { side, code }
+let order = null; // { side, code, edit? }
 const moQty = () => Math.floor(Number($('mo-qty').value) || 0);
 const moPrice = () => { const v = Number($('mo-px').value); return v > 0 ? round(order.code, v) : 0; };
-function openOrder(side, price) {
-  const code = state.sel;
-  order = { side, code };
+function openOrder(side, price, code = state.sel, edit = null) {
+  order = { side, code, edit };
   $('mo-px').value = price ?? last(code);
   $('mo-px').step = isUS(code) ? (last(code) < 1 ? '0.0001' : '0.01') : '1';
-  $('mo-qty').value = 1;
+  $('mo-qty').value = edit ? edit.n : 1;
   $('mo-err').textContent = '';
   $('modal').hidden = false;
   // 폰에서는 자동으로 키보드가 올라와 창을 가리므로 PC에서만 바로 입력 상태로
@@ -646,11 +652,14 @@ function renderOrder() {
   const krw = toKRW(code, p) * n;
   $('modal').className = 'modal ' + (buy ? 'is-buy' : 'is-sell');
   document.querySelectorAll('.mo-side button').forEach(b => b.classList.toggle('on', b.dataset.side === side));
-  $('mo-title').textContent = info(code).name;
-  $('mo-price').textContent = `현재가 ${px(code, cur)}${isUS(code) ? ` · 환율 ${FX.toLocaleString('ko-KR')}원` : ''}`;
+  const ed = order.edit;
+  $('mo-title').textContent = info(code).name + (ed ? ' 주문 정정' : '');
+  $('mo-price').textContent = `현재가 ${px(code, cur)}${isUS(code) ? ` · 환율 ${FX.toLocaleString('ko-KR')}원` : ''}`
+    + (ed ? ` · 원래 주문 ${ed.n}주 ${px(code, ed.price)}` : '');
   $('mo-unit').textContent = isUS(code) ? '$' : '원';
   $('mo-max').textContent = buy ? '최대 매수' : '전부 매도';
-  $('mo-ok').textContent = buy ? '매수 주문' : '매도 주문';
+  $('mo-ok').textContent = ed ? '정정하기' : buy ? '매수 주문' : '매도 주문';
+  document.querySelector('.mo-side').hidden = !!ed; // 정정할 때는 매수/매도 방향은 그대로
   // 바로 체결되는지, 언제 체결되는지 안내
   const now = buy ? p >= cur : p <= cur;
   $('mo-hint').textContent = !p ? '' : now
@@ -664,8 +673,22 @@ function renderOrder() {
   $('mo-after').textContent = buy ? `주문 후 주문 가능 현금 ${won(state.cash - krw)}` : `체결되면 현금 +${won(krw)}`;
 }
 function submitOrder() {
-  const err = placeOrder(order.side, order.code, moQty(), moPrice());
-  if (err) $('mo-err').textContent = err; else closeOrder();
+  const ed = order.edit;
+  if (!ed) {
+    const err = placeOrder(order.side, order.code, moQty(), moPrice());
+    if (err) $('mo-err').textContent = err; else closeOrder();
+    return;
+  }
+  // 정정: 원래 주문을 잠시 빼고(묶인 현금 돌려받음) 새 조건으로 다시 냄. 실패하면 원래대로 되돌림
+  const before = { cash: state.cash, orders: state.orders.slice() };
+  if (ed.side === 'buy') state.cash += toKRW(ed.code, ed.price) * ed.n;
+  state.orders = state.orders.filter(x => x.id !== ed.id);
+  const pending = state.orders.length;
+  const err = placeOrder(ed.side, ed.code, moQty(), moPrice());
+  if (err) { state.cash = before.cash; state.orders = before.orders; $('mo-err').textContent = err; render(); return; }
+  // 정정 가격이 바로 체결 가능한 가격이면 placeOrder 의 "체결" 안내를 그대로 둠
+  if (state.orders.length > pending) msg(`${info(ed.code).name} 주문을 정정했습니다. (${moQty()}주 · ${px(ed.code, moPrice())})`);
+  closeOrder();
 }
 
 let msgTimer;
@@ -699,6 +722,7 @@ function draw(canvas, data, color, full) {
   if (min === max) { min *= 0.999; max *= 1.001; }
   const x = i => pad + (i / (data.length - 1)) * (w - pad * 2);
   const y = v => pad + (1 - (v - min) / (max - min)) * (h - pad * 2);
+  if (full) chartGeom = { n: data.length, x, y, val: i => data[i], per: 1 }; // 짚어 보기용
   ctx.beginPath();
   data.forEach((v, i) => (i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v))));
   ctx.strokeStyle = color;
@@ -714,6 +738,75 @@ function draw(canvas, data, color, full) {
     ctx.fillStyle = g;
     ctx.fill();
   }
+}
+// 차트 짚어 보기: PC는 마우스를 올리면, 폰은 누른 채로 좌우로 움직이면 그 시점의 가격·등락률 표시
+let chartGeom = null, hoverX = null;
+function drawCrosshair() {
+  const g = chartGeom, cv = $('chart');
+  if (!g || hoverX == null || !g.n) return;
+  const ctx = cv.getContext('2d'), w = cv.clientWidth, h = cv.clientHeight;
+  // 마우스 위치에서 가장 가까운 점(봉)
+  let i = 0, best = Infinity;
+  for (let k = 0; k < g.n; k++) { const d = Math.abs(g.x(k) - hoverX); if (d < best) { best = d; i = k; } }
+  const c = state.sel, v = g.val(i), ch = (v / state.prices[c].open - 1) * 100;
+  const cx = g.x(i), cy = g.y(v), col = ch >= 0 ? css('--up') : css('--down');
+  ctx.save();
+  ctx.strokeStyle = css('--muted'); ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = css('--panel'); ctx.lineWidth = 2; ctx.stroke();
+  // 라벨: 가격 · 등락률 · 몇 분 전 (시세는 평균 4초마다 움직임)
+  const ago = (g.n - 1 - i) * g.per * 4;
+  const when = ago < 5 ? '지금' : ago < 60 ? `${ago}초 전` : `${Math.floor(ago / 60)}분 ${ago % 60 ? (ago % 60) + '초 ' : ''}전`;
+  const t1 = px(c, v), t2 = `${pct(ch)} · ${when}`;
+  ctx.font = '700 13px sans-serif'; const w1 = ctx.measureText(t1).width;
+  ctx.font = '600 12px sans-serif'; const w2 = ctx.measureText(t2).width;
+  const bw = Math.max(w1, w2) + 20, bh = 44, bx = Math.min(Math.max(cx - bw / 2, 2), w - bw - 2), by = 4;
+  ctx.fillStyle = css('--text'); ctx.globalAlpha = 0.92;
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 8) : ctx.rect(bx, by, bw, bh); ctx.fill();
+  ctx.globalAlpha = 1; ctx.fillStyle = css('--panel'); ctx.textAlign = 'center';
+  ctx.font = '700 13px sans-serif'; ctx.fillText(t1, bx + bw / 2, by + 19);
+  ctx.fillStyle = col; ctx.font = '600 12px sans-serif'; ctx.fillText(t2, bx + bw / 2, by + 36);
+  ctx.restore();
+}
+function redrawChart() {
+  const c = state.sel;
+  if (state.chart === 'candle') drawCandles($('chart'), state.prices[c].hist);
+  else draw($('chart'), state.prices[c].hist, lineColor(c), true);
+  drawCrosshair();
+}
+
+// 캔들 차트: 시세 per개를 한 봉으로 묶어 시가·고가·저가·종가 (오르면 빨강, 내리면 파랑)
+const CANDLE_PER = 4;
+function drawCandles(canvas, data) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w * dpr || canvas.height !== h * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (data.length < 2) return;
+  const candles = [];
+  for (let i = 0; i < data.length; i += CANDLE_PER) {
+    const g = data.slice(Math.max(0, i - 1), i + CANDLE_PER); // 앞 봉의 종가에서 시작
+    candles.push({ o: g[0], c: g[g.length - 1], hi: Math.max(...g), lo: Math.min(...g) });
+  }
+  const pad = 8;
+  let min = Math.min(...candles.map(k => k.lo)), max = Math.max(...candles.map(k => k.hi));
+  if (min === max) { min *= 0.999; max *= 1.001; }
+  const slot = (w - pad * 2) / candles.length, bw = Math.max(2, slot * 0.62);
+  const y = v => pad + (1 - (v - min) / (max - min)) * (h - pad * 2);
+  const up = css('--up'), down = css('--down');
+  chartGeom = { n: candles.length, x: i => pad + slot * (i + 0.5), y, val: i => candles[i].c, per: CANDLE_PER, candles };
+  candles.forEach((k, i) => {
+    const cx = pad + slot * (i + 0.5), col = k.c >= k.o ? up : down;
+    ctx.strokeStyle = ctx.fillStyle = col;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, y(k.hi)); ctx.lineTo(cx, y(k.lo)); ctx.stroke(); // 꼬리
+    const top = y(Math.max(k.o, k.c)), bh = Math.max(1, Math.abs(y(k.o) - y(k.c)));
+    ctx.fillRect(cx - bw / 2, top, bw, bh); // 몸통
+  });
 }
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const lineColor = code => (change(code) >= 0 ? css('--up') : css('--down'));
@@ -1000,7 +1093,8 @@ function render() {
   $('d-change').textContent = `${pct(ch)} (${diff > 0 ? '+' : diff < 0 ? '-' : ''}${px(c, Math.abs(diff))})`;
   $('d-change').className = cls(ch);
   ensureHist(c);
-  draw($('chart'), state.prices[c].hist, lineColor(c), true);
+  redrawChart();
+  document.querySelectorAll('.chart-type button').forEach(b => b.classList.toggle('on', b.dataset.ct === (state.chart || 'line')));
   $('cost').textContent = `보유 ${heldQty(c)}주 · 최대 매수 ${maxBuy(c)}주`;
   // 이 종목의 미체결 주문
   const mine = state.orders.filter(o => o.code === c);
@@ -1015,7 +1109,24 @@ function render() {
 // 호가를 누르면 그 가격으로 매수 주문 창 (창 안에서 매도로 바꿀 수 있음)
 $('book').addEventListener('click', e => { const r = e.target.closest('.br'); if (r) openOrder('buy', Number(r.dataset.px)); });
 // 미체결 주문 취소
-document.addEventListener('click', e => { const b = e.target.closest('[data-cancel]'); if (b) cancelOrder(Number(b.dataset.cancel)); });
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-cancel]'); if (c) return cancelOrder(Number(c.dataset.cancel));
+  const ed = e.target.closest('[data-edit]'); if (ed) editOrder(Number(ed.dataset.edit));
+});
+// 차트 짚어 보기: 마우스는 올리기만 해도, 손가락은 누르고 있는 동안
+{
+  const cv = $('chart'); let touching = false;
+  const at = e => { hoverX = e.clientX - cv.getBoundingClientRect().left; redrawChart(); };
+  const off = () => { touching = false; hoverX = null; redrawChart(); };
+  cv.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { touching = true; at(e); } });
+  cv.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || touching) at(e); });
+  cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') off(); });
+  cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') off(); });
+  cv.addEventListener('pointercancel', off);
+}
+// 차트 종류 (라인 / 캔들)
+document.querySelectorAll('.chart-type button').forEach(b =>
+  b.addEventListener('click', () => { state.chart = b.dataset.ct; save(); render(); }));
 for (const id of ['browse-list', 'recent-list', 'hold-list'])
   $(id).addEventListener('click', e => { const li = e.target.closest('li'); if (li) select(li.dataset.code); });
 document.querySelectorAll('.nav button').forEach(b =>
