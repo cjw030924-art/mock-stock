@@ -233,22 +233,77 @@ const STOCKS = [
   { code: 'DXYZ', mk: 'US', name: '데스티니 테크 100', won: 40074, vol: 0.01, rate: -0.95, amt: 0.2844 },
   { code: 'VTI', sub: 'ETF', mk: 'US', name: 'VTI', won: 508726, vol: 0.002, rate: -0.19, amt: 0.2696 },
   { code: 'BMEA', mk: 'US', name: '바이오미아 퓨전', won: 1950, vol: 0.01, rate: 7.35, amt: 0.2639 },
+  // 가상의 급등주 (실제 회사 아님). meme: 평소 크게 출렁이고, 가끔 급등 구간 → 급락이 옴
+  { code: 'NQHX', mk: 'US', name: '넥서스 퀀텀 홀딩스', price: 1.84, vol: 0.03, rate: 46.03, amt: 0.62, meme: true, fake: true },
+  { code: 'ZPHL', mk: 'US', name: '제퍼 바이오 홀딩스', price: 0.87, vol: 0.035, rate: -11.22, amt: 0.41, meme: true, fake: true },
+  { code: 'ORBX', mk: 'US', name: '오르빗 스페이스 홀딩스', price: 3.12, vol: 0.025, rate: 8.71, amt: 0.35, meme: true, fake: true },
+  // 가상의 극단 급등주: 한 번 붙으면 몇 배로 치솟고, 거의 항상 그대로 무너짐
+  { code: 'HYNV', mk: 'US', name: '하이퍼노바 AI 홀딩스', price: 2.47, vol: 0.04, rate: 132.08, amt: 0.88, meme: 'extreme', fake: true },
+  { code: 'CLNH', mk: 'US', name: '크립토루나 홀딩스', price: 0.53, vol: 0.045, rate: 38.42, amt: 0.57, meme: 'extreme', fake: true },
+  { code: 'BLZH', mk: 'US', name: '블레이즈 에너지 홀딩스', price: 4.06, vol: 0.035, rate: -24.6, amt: 0.49, meme: 'extreme', fake: true },
+  { code: 'QLKB', mk: 'US', name: '퀀텀레이크 바이오 홀딩스', price: 1.19, vol: 0.04, rate: 71.5, amt: 0.66, meme: 'extreme', fake: true },
+  // 가상의 국내 대형주 (JH증권 계열). 거래대금 24.5억 → 국내 거래대금 10위 안팎에서 시작
+  { code: '999550', mk: 'KR', name: 'JH전자', price: 87400, vol: 0.006, rate: 3.24, amt: 24.5, fake: true },
+  // 가상의 고배율 레버리지 ETF: 기초 종목(track)이 움직인 비율 × lev 만큼 움직임. 시작 등락률도 기초 종목 × 배수
+  { code: 'NQTX', sub: 'ETF', mk: 'US', name: 'JH 나스닥100 10배 ETF', price: 18.40, vol: 0.02, rate: -6.8, amt: 0.72, track: 'QQQ', lev: 10, fake: true },
+  { code: 'SPFV', sub: 'ETF', mk: 'US', name: 'JH S&P500 5배 ETF', price: 42.15, vol: 0.01, rate: -0.75, amt: 0.38, track: 'VOO', lev: 5, fake: true },
+  { code: 'NVDT', sub: 'ETF', mk: 'US', name: 'JH 엔비디아 3배 ETF', price: 61.30, vol: 0.018, rate: -2.94, amt: 0.55, track: 'NVDA', lev: 3, fake: true },
 ];
 // 원화로 받은 해외 가격은 달러로 환산
 for (const s of STOCKS) if (s.won) s.price = Math.round(s.won / FX * 100) / 100;
+
+// 전 종목 목록(stocks-data.js) 합치기: 위에서 직접 넣은 종목은 그대로 두고, 나머지를 "가벼운 종목(lite)"으로 추가
+//  - lite 종목은 차트 기록을 처음 볼 때 만들고, 내가 본·보유·주문한 종목만 저장 (저장 공간 절약)
+const CAT = window.CATALOG || { kr: [], us: [] };
+{
+  const codes = new Set(STOCKS.map(s => s.code)), names = new Set(STOCKS.filter(s => s.mk === 'KR').map(s => s.name));
+  const krCat = new Map(CAT.kr.map(r => [r[0], r])), usCat = new Map(CAT.us.map(r => [r[0], r]));
+  // 코드를 몰라 임시 코드(KX-SEMI2X 등)로 넣었던 국내 종목은 이름으로 실제 코드를 찾아 로고에 사용
+  const krByName = new Map(CAT.kr.map(r => [r[1].replace(/\s+/g, ''), r[0]]));
+  for (const s of STOCKS) if (s.mk === 'KR' && !/^\d{6}$/.test(s.code)) s.logoCode = krByName.get(s.name.replace(/\s+/g, ''));
+  const skh = STOCKS.find(s => s.code === 'SKH-ADR'); if (skh) skh.logoCode = '000660'; // SK하이닉스 ADR → SK하이닉스 로고
+  for (const s of STOCKS) {
+    const r = s.mk === 'US' ? usCat.get(s.code) : krCat.get(s.code);
+    if (!r) continue;
+    if (s.mk === 'US') { s.rc = r[6]; s.eng = r[2]; } // 네이버 로고·영어 이름 검색용
+    // 제가 추정해서 넣었던 가격(rate 없음)은 실제 시세로 교체
+    if (s.rate == null) { s.price = r[s.mk === 'US' ? 3 : 2]; s.rate = r[s.mk === 'US' ? 4 : 3]; }
+  }
+  for (const [code, name, price, rate, tv, kind, mkt] of CAT.kr) {
+    if (codes.has(code) || names.has(name)) continue;
+    const etf = kind !== 's';
+    STOCKS.push({ code, mk: 'KR', name, price, rate, tv, lite: true, sub: etf ? (kind === 'f' ? 'ETF' : 'ETN') : undefined, market: mkt === 'Q' ? '코스닥' : '코스피',
+      vol: etf ? 0.004 : price < 5000 ? 0.009 : 0.006 });
+  }
+  for (const [code, name, eng, price, rate, tv, rc, mkt] of CAT.us) {
+    if (codes.has(code)) continue;
+    STOCKS.push({ code, mk: 'US', name, eng, price, rate, tv, rc, lite: true, market: { N: '나스닥', Y: '뉴욕', A: '아멕스' }[mkt],
+      vol: price < 10 ? 0.01 : 0.005 });
+  }
+}
 const START_CASH = 100_000_000;
 const HIST_LEN = 120;
 const RANK_MAX = 100;
 const KEY = 'mock-stock-v2';
 
-const info = code => STOCKS.find(s => s.code === code);
+const BY_CODE = new Map(STOCKS.map(s => [s.code, s]));
+const info = code => BY_CODE.get(code);
 const isUS = code => info(code).mk === 'US';
 // 국내는 호가 단위로, 해외는 센트 단위로 맞춤 (tickSize는 아래 호가 부분)
-const round = (code, v) => (isUS(code) ? Math.round(v * 100) / 100 : Math.max(1, Math.round(v / tickSize(code, v)) * tickSize(code, v)));
+// 해외: $1 이상은 센트, $1 미만은 $0.0001 단위 (싼 종목도 조금씩 움직이도록)
+const usRound = v => (v < 1 ? Math.round(v * 10000) / 10000 : Math.round(v * 100) / 100);
+const round = (code, v) => (isUS(code) ? Math.max(0.0001, usRound(v)) : Math.max(1, Math.round(v / tickSize(code, v)) * tickSize(code, v)));
 const toKRW = (code, v) => (isUS(code) ? v * FX : v);
 const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
+// 1.23억 / 4,560만 / 9,800원 처럼 짧게
+function shortWon(n) {
+  const a = Math.abs(n), sign = n < 0 ? '-' : '';
+  if (a >= 1e8) return sign + (a / 1e8).toFixed(a >= 1e10 ? 0 : 2) + '억';
+  if (a >= 1e4) return sign + Math.round(a / 1e4).toLocaleString('ko-KR') + '만';
+  return won(n);
+}
 const px = (code, v) => (isUS(code)
-  ? '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  ? '$' + v.toLocaleString('en-US', { minimumFractionDigits: v < 1 ? 4 : 2, maximumFractionDigits: v < 1 ? 4 : 2 })
   : won(v));
 const pct = n => (n > 0 ? '+' : '') + n.toFixed(2) + '%';
 const cls = n => (n > 0 ? 'up' : n < 0 ? 'down' : '');
@@ -264,7 +319,7 @@ function bigNum(n, unit) {
 
 function fresh() {
   return { cash: START_CASH, startCash: START_CASH, holdings: {},trades: [], prices: {}, volume: {}, sel: STOCKS[0].code,
-    tab: 'ALL', sort: 'amount', page: 'browse', recent: [] };
+    tab: 'ALL', sort: 'amount', page: 'browse', recent: [], orders: [] };
 }
 
 let state;
@@ -279,7 +334,14 @@ if (state.startCash !== START_CASH) {
   state.cash += START_CASH - (state.startCash || 10_000_000);
   state.startCash = START_CASH;
 }
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+// 저장: lite 종목은 내가 본(최근 본·선택)·보유·주문한 것만 저장하고 나머지는 다음에 목록 기준가로 다시 시작
+function save() {
+  try {
+    const keep = new Set([state.sel, ...state.recent, ...Object.keys(state.holdings), ...(state.orders || []).map(o => o.code)]);
+    const pick = obj => Object.fromEntries(Object.entries(obj).filter(([c]) => { const s = info(c); return s && (!s.lite || keep.has(c)); }));
+    localStorage.setItem(KEY, JSON.stringify({ ...state, prices: pick(state.prices), volume: pick(state.volume) }));
+  } catch {}
+}
 
 const last = code => { const h = state.prices[code].hist; return h[h.length - 1]; };
 const change = code => (last(code) / state.prices[code].open - 1) * 100;
@@ -291,13 +353,25 @@ function addVolume(code, r) {
   v.shares += Math.max(1, Math.round(amt / toKRW(code, last(code))));
   v.amount += amt;
 }
-const DATA_VER = 7; // 시작 데이터가 바뀌면 올림 → 시세/거래량만 새로 시작 (자산은 유지)
+const DATA_VER = 8; // 시작 데이터가 바뀌면 올림 → 시세/거래량만 새로 시작 (자산은 유지)
 if (state.dataVer !== DATA_VER) { state.prices = {}; state.volume = {}; state.dataVer = DATA_VER; }
 // 종목별 초기값 (새 종목이 추가돼도 기존 저장 데이터는 유지)
 // 처음부터 등락이 보이도록 장 시작 후 흐름을 미리 만들어 둠
+// open 에서 출발해 end 에서 끝나는 그럴듯한 흐름 N개
+function makeHist(s, open, end, N = 80) {
+  const min = isUS(s.code) ? 0.0001 : 1;
+  const walk = [0];
+  for (let i = 1; i < N; i++) walk.push(walk[i - 1] + (Math.random() - 0.5) * 2 * s.vol);
+  const hist = walk.map((w, i) => {
+    const t = i / (N - 1);
+    const base = open * Math.pow(end / open, t);
+    return Math.max(min, round(s.code, base * (1 + w - t * walk[N - 1])));
+  });
+  hist[N - 1] = end; // 현재가는 반올림 없이 그대로 (토스 가격이 호가 단위표보다 잘게 나뉜 경우가 있음)
+  return hist;
+}
 function initStock(s) {
   if (!state.prices[s.code]) {
-    const N = 80, min = isUS(s.code) ? 0.01 : 1;
     let open, end;
     if (s.rate != null) {
       // 실제 등락률: 전일 종가에서 출발해 현재가에서 끝나는 흐름
@@ -306,22 +380,17 @@ function initStock(s) {
     } else {
       // 종목마다 오늘의 방향(추세)을 다르게
       open = s.price;
-      end = s.price * (1 + (Math.random() - 0.5) * s.vol * 0.25 * N);
+      end = round(s.code, s.price * (1 + (Math.random() - 0.5) * s.vol * 0.25 * 80));
     }
-    const walk = [0];
-    for (let i = 1; i < N; i++) walk.push(walk[i - 1] + (Math.random() - 0.5) * 2 * s.vol);
-    const hist = walk.map((w, i) => {
-      const t = i / (N - 1);
-      const base = open * Math.pow(end / open, t);
-      return Math.max(min, round(s.code, base * (1 + w - t * walk[N - 1])));
-    });
-    // 실제 현재가는 반올림 없이 그대로 (토스 가격이 호가 단위표보다 잘게 나뉜 경우가 있음)
-    hist[N - 1] = s.rate != null ? s.price : round(s.code, end);
-    state.prices[s.code] = { open, hist };
+    // lite 종목은 현재가만 들고 있다가, 화면에 보일 때 흐름을 만듦 (ensureHist)
+    state.prices[s.code] = s.lite ? { open, hist: [end], lite: true } : { open, hist: makeHist(s, open, end) };
   }
   if (!state.volume[s.code]) {
     // 실제 거래대금(억원)으로 시작. 순위 밖 종목은 국내 100위(2.1억), 해외 100위(0.26억)보다 적게
-    const amount = (s.amt != null ? s.amt : s.mk === 'US' ? 0.05 + Math.random() * 0.2 : 0.3 + Math.random() * 1.7) * 1e8;
+    // lite 종목은 실제 시장 거래대금을 토스 규모로 줄이고, 순위 밖 범위 안에서 많고 적음의 순서를 유지
+    const cut = s.mk === 'US' ? 0.25 : 2.0, x = (s.tv || 0) * 0.0128;
+    const amount = (s.amt != null ? s.amt : s.lite ? cut * 0.95 * x / (x + cut)
+      : s.mk === 'US' ? 0.05 + Math.random() * 0.2 : 0.3 + Math.random() * 1.7) * 1e8;
     state.volume[s.code] = {
       base: amount / 1500,
       amount,
@@ -330,34 +399,91 @@ function initStock(s) {
   }
 }
 STOCKS.forEach(initStock);
+// lite 종목의 차트용 흐름: 처음 볼 때 전일 종가 → 지금까지 만든 뒤, 그동안 쌓인 시세를 이어 붙임
+function ensureHist(code) {
+  const p = state.prices[code];
+  if (!p.lite) return;
+  const s = info(code), first = p.hist[0];
+  p.hist = [...makeHist(s, p.open, first, Math.max(2, 81 - p.hist.length)).slice(0, -1), ...p.hist].slice(-HIST_LEN);
+  delete p.lite;
+}
 
 // 가격 변동: 랜덤 워크 + 가끔 뉴스 이벤트
 const NEWS_UP = ['신제품 발표 호평', '대규모 수주 소식', '실적 예상치 상회', '목표주가 상향'];
 const NEWS_DOWN = ['실적 부진 우려', '목표주가 하향', '경쟁 심화 우려', '규제 리스크 부각'];
+// 급등주 이벤트: 조용하다가 2~4분마다 아래 중 하나가 일어남
+//  - climb : 틱마다 +0.8~2%씩 20~40번 → 서서히 +30~120%
+//  - bleed : 틱마다 −1~1.8%씩 20~35번 → 서서히 −25~45%
+//  - rocket: 순식간에 폭등(극단 +6~14%, 일반 +3~6%씩 6~12번) → 끝나면 높은 확률로 crash(폭락)
+const MEME = {
+  normal:  { start: 0.02,  mix: [['climb', 0.45], ['bleed', 0.45], ['rocket', 0.10]], rocket: [0.03, 0.03], crash: [0.03, 0.03], after: 0.7 },
+  extreme: { start: 0.025, mix: [['climb', 0.38], ['bleed', 0.37], ['rocket', 0.25]], rocket: [0.06, 0.08], crash: [0.07, 0.08], after: 0.9 },
+};
+const pick = ([base, range]) => base + Math.random() * range;
+const meme = {}; // code -> { mode, left, drift }
+function memeEvent(s, mode, P) {
+  const E = {
+    climb:  { left: pick([20, 20]), drift: pick([0.008, 0.012]), say: `📈 [${s.name}] 매수세 유입, 꾸준히 오르는 중` },
+    bleed:  { left: pick([20, 15]), drift: -pick([0.01, 0.008]), say: `📉 [${s.name}] 매도세 지속, 서서히 밀리는 중` },
+    rocket: { left: pick([6, 6]),   drift: pick(P.rocket),        say: s.meme === 'extreme' ? `🚀🚀 [${s.name}] 폭등 시작!!` : `🚀 [${s.name}] 급등 시작!` },
+    crash:  { left: pick([5, 5]),   drift: -pick(P.crash),        say: `💥 [${s.name}] 폭락! 매물 폭탄` },
+  }[mode];
+  meme[s.code] = { mode, left: Math.floor(E.left), drift: E.drift };
+  toast(E.say);
+}
+function memeDrift(s) {
+  const P = MEME[s.meme === 'extreme' ? 'extreme' : 'normal'];
+  const m = meme[s.code];
+  if (m) {
+    if (--m.left <= 0) {
+      delete meme[s.code];
+      if (m.mode === 'rocket' && Math.random() < P.after) memeEvent(s, 'crash', P);
+    }
+    return m.drift;
+  }
+  if (Math.random() < P.start) {
+    let x = Math.random();
+    const mode = P.mix.find(([, w]) => (x -= w) < 0)[0];
+    memeEvent(s, mode, P);
+  }
+  return 0;
+}
+
 function step(s) {
+  // 가상 고배율 ETF: 이번에 기초 종목이 움직인 비율 × 배수 (+ 아주 작은 괴리)
+  if (s.track) {
+    const u = state.prices[s.track].hist, ur = u.length > 1 ? u[u.length - 1] / u[u.length - 2] - 1 : 0;
+    const r = s.lev * ur + (Math.random() - 0.5) * 0.001;
+    const h = state.prices[s.code].hist;
+    h.push(Math.max(0.0001, round(s.code, last(s.code) * Math.max(0.01, 1 + r))));
+    if (h.length > HIST_LEN) h.shift();
+    addVolume(s.code, r);
+    return;
+  }
   // 2배 ETF는 1.25배, 3배 ETF는 1.5배 더 크게 움직임
-  const boost = { 1: 1, 2: 1.25, 3: 1.5 }[levOf(s.code)];
+  const boost = { 1: 1, 2: 1.25, 3: 1.5 }[levOf(s.code)] || 1;
   let r = (Math.random() - 0.5) * 2 * s.vol * boost;
-  if (Math.random() < 0.0015) {
+  if (!s.lite && Math.random() < 0.0015) { // 뉴스 알림은 직접 넣은 종목만 (종목이 많아 알림이 넘치지 않게)
     const good = Math.random() < 0.5;
     r += (good ? 1 : -1) * (0.02 + Math.random() * 0.03);
     const pool = good ? NEWS_UP : NEWS_DOWN;
     toast(`[${s.name}] ${pool[Math.floor(Math.random() * pool.length)]}`);
   }
+  if (s.meme) r += memeDrift(s);
   const h = state.prices[s.code].hist;
-  h.push(Math.max(isUS(s.code) ? 0.01 : 1, round(s.code, last(s.code) * (1 + r))));
+  h.push(Math.max(isUS(s.code) ? 0.0001 : 1, round(s.code, last(s.code) * (1 + r))));
   if (h.length > HIST_LEN) h.shift();
   addVolume(s.code, r);
 }
 // 호가 (모의). 호가 단위는 한국거래소 규칙, 해외는 $0.01
 const BOOK_LV = 7;
 function tickSize(code, p) {
-  if (isUS(code)) return 0.01;
+  if (isUS(code)) return p < 1 ? 0.0001 : 0.01;
   const s = info(code);
   if (s.sub === 'ETF' || s.sub === 'ETN' || /^(KODEX|TIGER|SOL|RISE)/.test(s.name)) return p < 2000 ? 1 : 5;
   return p < 2000 ? 1 : p < 5000 ? 5 : p < 20000 ? 10 : p < 50000 ? 50 : p < 200000 ? 100 : p < 500000 ? 500 : 1000;
 }
-const snap = (code, v) => (isUS(code) ? Math.round(v * 100) / 100 : v);
+const snap = (code, v) => (isUS(code) ? usRound(v) : v);
 const books = {}; // code -> { ask: [잔량], bid: [잔량] } (가까운 호가부터)
 function bookQty(code) {
   // 호가 한 칸 잔량 기준: 오늘 거래대금의 0.3% 정도를 주식 수로 (최소 수십 주)
@@ -381,7 +507,10 @@ function renderBook() {
   const row = (r, side) => {
     const ch = (r.px / open - 1) * 100, w = Math.round((r.q / max) * 100);
     const qty = `<span class="q"><i style="width:${w}%"></i><b>${r.q.toLocaleString('ko-KR')}</b></span>`;
-    return `<div class="br ${side}${r.px === ask1 ? ' cur' : ''}" data-side="${side === 'ask' ? 'buy' : 'sell'}">
+    // 이 가격에 걸어 둔 내 미체결 주문 표시
+    const my = state.orders.filter(o => o.code === c && o.price === r.px);
+    const tag = my.length ? `<em class="my ${my[0].side}">내 ${my[0].side === 'buy' ? '매수' : '매도'} ${my.reduce((a, o) => a + o.n, 0)}</em>` : '';
+    return `<div class="br ${side}${r.px === ask1 ? ' cur' : ''}${my.length ? ' has-order' : ''}" data-px="${r.px}">${tag}
       ${side === 'ask' ? qty : '<span></span>'}
       <span class="bp ${cls(ch)}">${px(c, r.px).replace('원', '')}<small>${pct(ch)}</small></span>
       ${side === 'bid' ? qty : '<span></span>'}
@@ -395,75 +524,147 @@ function renderBook() {
 
 function tick() {
   STOCKS.forEach(step);
+  fillOrders();
   shakeBook(state.sel);
   save();
   render();
   setTimeout(tick, 3000 + Math.random() * 2000); // 3~5초 간격
 }
 
-// 주문
+// 주문 (지정가)
+//  - 매수: 주문가 ≥ 현재가면 현재가로 바로 체결, 아니면 미체결로 걸어 두고 현재가가 주문가 이하로 오면 주문가로 체결
+//  - 매도: 주문가 ≤ 현재가면 현재가로 바로 체결, 아니면 현재가가 주문가 이상으로 오면 주문가로 체결
+//  - 미체결 매수 금액은 현금에서 미리 빼 두고(취소하면 돌려줌), 미체결 매도 수량은 팔 수 있는 수량에서 빠짐
+state.orders ||= [];
 const heldQty = code => (state.holdings[code] ? state.holdings[code].qty : 0);
-const maxBuy = code => Math.floor(state.cash / toKRW(code, last(code)));
+const pendingSell = code => state.orders.filter(o => o.side === 'sell' && o.code === code).reduce((a, o) => a + o.n, 0);
+const sellable = code => heldQty(code) - pendingSell(code);
+const reservedCash = () => state.orders.filter(o => o.side === 'buy').reduce((a, o) => a + toKRW(o.code, o.price) * o.n, 0);
+const maxBuy = (code, price = last(code)) => Math.floor(state.cash / toKRW(code, price));
 
-// 체결. 실패하면 오류 문구를 돌려줌
-function trade(side, code, n) {
-  const p = last(code), name = info(code).name;
-  const krw = toKRW(code, p) * n;
+// 실제 체결: 보유 수량·평균가·거래 내역 반영 (매수 대금은 호출하는 쪽에서 처리)
+function fill(side, code, n, p) {
   const h = state.holdings[code] || { qty: 0, avg: 0 };
-  if (!(n >= 1)) return '수량을 1 이상 입력하세요.';
   if (side === 'buy') {
-    if (krw > state.cash) return `현금이 부족합니다. (최대 ${maxBuy(code)}주)`;
     h.avg = (h.avg * h.qty + p * n) / (h.qty + n);
     h.qty += n;
-    state.cash -= krw;
   } else {
-    if (n > h.qty) return `보유 수량(${h.qty}주)보다 많이 팔 수 없습니다.`;
     h.qty -= n;
-    state.cash += krw;
+    state.cash += toKRW(code, p) * n;
   }
   if (h.qty > 0) state.holdings[code] = h; else delete state.holdings[code];
-  state.trades.unshift({ t: Date.now(), side, code, name, n, p });
+  state.trades.unshift({ t: Date.now(), side, code, name: info(code).name, n, p });
   state.trades = state.trades.slice(0, 100);
-  msg(`${name} ${n}주 ${side === 'buy' ? '매수' : '매도'} 체결 (${px(code, p)})`);
+}
+
+// 주문 접수. 실패하면 오류 문구를 돌려줌
+function placeOrder(side, code, n, price) {
+  const name = info(code).name, cur = last(code), label = side === 'buy' ? '매수' : '매도';
+  if (!(n >= 1)) return '수량을 1 이상 입력하세요.';
+  if (!(price > 0)) return '가격을 입력하세요.';
+  if (side === 'buy') {
+    if (toKRW(code, price) * n > state.cash) return `현금이 부족합니다. (이 가격에 최대 ${maxBuy(code, price)}주)`;
+    if (price >= cur) {
+      state.cash -= toKRW(code, cur) * n;
+      fill('buy', code, n, cur);
+      msg(`${name} ${n}주 매수 체결 (${px(code, cur)})`);
+    } else {
+      state.cash -= toKRW(code, price) * n;
+      state.orders.push({ id: Date.now() + Math.random(), side, code, n, price, t: Date.now() });
+      msg(`${name} ${n}주 ${px(code, price)} 매수 주문 접수 · 가격이 오면 체결됩니다`);
+    }
+  } else {
+    if (n > sellable(code)) {
+      const p = pendingSell(code);
+      return heldQty(code) === 0 ? '보유한 주식이 없습니다.'
+        : `팔 수 있는 수량은 ${sellable(code)}주입니다.${p ? ` (미체결 매도 ${p}주)` : ''}`;
+    }
+    if (price <= cur) {
+      fill('sell', code, n, cur);
+      msg(`${name} ${n}주 매도 체결 (${px(code, cur)})`);
+    } else {
+      state.orders.push({ id: Date.now() + Math.random(), side, code, n, price, t: Date.now() });
+      msg(`${name} ${n}주 ${px(code, price)} 매도 주문 접수 · 가격이 오면 체결됩니다`);
+    }
+  }
   save();
   render();
   return null;
 }
 
+// 시세가 움직일 때마다 미체결 주문 확인
+function fillOrders() {
+  state.orders = state.orders.filter(o => {
+    const cur = last(o.code);
+    const hit = o.side === 'buy' ? cur <= o.price : cur >= o.price;
+    if (!hit) return true;
+    fill(o.side, o.code, o.n, o.price); // 매수 대금은 주문할 때 이미 빼 둠
+    toast(`✅ ${info(o.code).name} ${o.n}주 ${o.side === 'buy' ? '매수' : '매도'} 체결 (${px(o.code, o.price)})`);
+    return false;
+  });
+}
+
+function cancelOrder(id) {
+  const o = state.orders.find(x => x.id === id);
+  if (!o) return;
+  if (o.side === 'buy') state.cash += toKRW(o.code, o.price) * o.n;
+  state.orders = state.orders.filter(x => x.id !== id);
+  msg(`${info(o.code).name} ${o.side === 'buy' ? '매수' : '매도'} 주문을 취소했습니다.`);
+  save();
+  render();
+}
+
+function ordersHTML(list) {
+  return list.map(o => `<li>
+      <span><b class="${o.side === 'buy' ? 'up' : 'down'}">${o.side === 'buy' ? '매수' : '매도'}</b> ${info(o.code).name}
+        <small class="muted">${o.n}주 · ${px(o.code, o.price)}</small></span>
+      <button class="cancel-btn" data-cancel="${o.id}">취소</button>
+    </li>`).join('');
+}
+
 // 주문 창
 let order = null; // { side, code }
 const moQty = () => Math.floor(Number($('mo-qty').value) || 0);
-function openOrder(side) {
+const moPrice = () => { const v = Number($('mo-px').value); return v > 0 ? round(order.code, v) : 0; };
+function openOrder(side, price) {
   const code = state.sel;
-  if (side === 'sell' && heldQty(code) === 0) return msg('보유한 주식이 없습니다.', true);
   order = { side, code };
-  const buy = side === 'buy';
-  $('modal').className = 'modal ' + (buy ? 'is-buy' : 'is-sell');
-  $('mo-title').textContent = `${info(code).name} ${buy ? '매수' : '매도'}`;
-  $('mo-max').textContent = buy ? '최대 매수' : '전부 매도';
-  $('mo-ok').textContent = buy ? '매수하기' : '매도하기';
+  $('mo-px').value = price ?? last(code);
+  $('mo-px').step = isUS(code) ? (last(code) < 1 ? '0.0001' : '0.01') : '1';
   $('mo-qty').value = 1;
   $('mo-err').textContent = '';
   $('modal').hidden = false;
-  $('mo-qty').focus();
-  $('mo-qty').select();
+  // 폰에서는 자동으로 키보드가 올라와 창을 가리므로 PC에서만 바로 입력 상태로
+  if (!isPhone()) { $('mo-qty').focus(); $('mo-qty').select(); }
   renderOrder();
 }
+function setSide(side) { if (order) { order.side = side; $('mo-err').textContent = ''; renderOrder(); } }
 function closeOrder() { order = null; $('modal').hidden = true; }
 function renderOrder() {
   if (!order) return;
-  const { side, code } = order, p = last(code), n = moQty(), krw = toKRW(code, p) * n;
-  $('mo-price').textContent = `현재가 ${px(code, p)}${isUS(code) ? ` · 환율 ${FX.toLocaleString('ko-KR')}원` : ''}`;
-  $('mo-avail').textContent = side === 'buy'
-    ? `주문 가능 ${maxBuy(code)}주 (현금 ${won(state.cash)})`
-    : `보유 ${heldQty(code)}주`;
+  const { side, code } = order, buy = side === 'buy', cur = last(code), p = moPrice(), n = moQty();
+  const krw = toKRW(code, p) * n;
+  $('modal').className = 'modal ' + (buy ? 'is-buy' : 'is-sell');
+  document.querySelectorAll('.mo-side button').forEach(b => b.classList.toggle('on', b.dataset.side === side));
+  $('mo-title').textContent = info(code).name;
+  $('mo-price').textContent = `현재가 ${px(code, cur)}${isUS(code) ? ` · 환율 ${FX.toLocaleString('ko-KR')}원` : ''}`;
+  $('mo-unit').textContent = isUS(code) ? '$' : '원';
+  $('mo-max').textContent = buy ? '최대 매수' : '전부 매도';
+  $('mo-ok').textContent = buy ? '매수 주문' : '매도 주문';
+  // 바로 체결되는지, 언제 체결되는지 안내
+  const now = buy ? p >= cur : p <= cur;
+  $('mo-hint').textContent = !p ? '' : now
+    ? `현재가 ${px(code, cur)}에 바로 체결됩니다.`
+    : `현재가가 ${px(code, p)} ${buy ? '이하로 내려오면' : '이상으로 오르면'} 체결됩니다.`;
+  $('mo-hint').className = 'mo-hint ' + (now ? 'now' : 'wait');
+  $('mo-avail').textContent = buy
+    ? `이 가격에 최대 ${p ? maxBuy(code, p) : 0}주 (주문 가능 현금 ${won(state.cash)})`
+    : `팔 수 있는 수량 ${sellable(code)}주${pendingSell(code) ? ` (보유 ${heldQty(code)}주 · 미체결 매도 ${pendingSell(code)}주)` : ''}`;
   $('mo-total').textContent = won(krw);
-  $('mo-after').textContent = side === 'buy'
-    ? `주문 후 현금 ${won(state.cash - krw)}`
-    : `주문 후 보유 ${heldQty(code) - n}주 · 현금 ${won(state.cash + krw)}`;
+  $('mo-after').textContent = buy ? `주문 후 주문 가능 현금 ${won(state.cash - krw)}` : `체결되면 현금 +${won(krw)}`;
 }
 function submitOrder() {
-  const err = trade(order.side, order.code, moQty());
+  const err = placeOrder(order.side, order.code, moQty(), moPrice());
   if (err) $('mo-err').textContent = err; else closeOrder();
 }
 
@@ -523,19 +724,76 @@ const THREE_X = ['KORU', 'SOXL', 'SOXS', 'TQQQ', 'SQQQ', 'TMF', 'GDXU', 'GDXD'];
 const TWO_X = ['RAM', 'MUU', 'QLD', 'ETHU', 'ETHD', 'XXRP', 'DRAM', 'SNXX', 'BITX', 'SNDU', 'TSLL', 'BITU', 'IONX'];
 // 레버리지 배수 (일반 종목은 1)
 function levOf(code) {
+  if (info(code).lev) return info(code).lev;
   if (THREE_X.includes(code)) return 3;
   if (TWO_X.includes(code) || /2X|2x|레버리지/.test(info(code).name)) return 2;
   return 1;
 }
 const INVERSE = ['SOXS', 'SQQQ', 'ETHD', 'GDXD'];
+// 가상 종목 전용 로고 (배경 그라데이션 + 흰색 심볼, 32x32 기준)
+const FAKE_LOGOS = {
+  NQHX: ['#0f2b5b', '#1fb6d6', // 넥서스 퀀텀: 원자 궤도
+    `<g fill="none" stroke="#fff" stroke-width="1.7"><ellipse cx="16" cy="16" rx="11.5" ry="4.4"/>
+     <ellipse cx="16" cy="16" rx="11.5" ry="4.4" transform="rotate(60 16 16)"/><ellipse cx="16" cy="16" rx="11.5" ry="4.4" transform="rotate(120 16 16)"/></g>
+     <circle cx="16" cy="16" r="2.8" fill="#8ff6ff"/>`],
+  ZPHL: ['#07563f', '#3ddc97', // 제퍼 바이오: DNA 나선
+    `<g fill="none" stroke-linecap="round"><path d="M10 3c0 6.5 12 6.5 12 13s-12 6.5-12 13" stroke="#fff" stroke-width="2.4"/>
+     <path d="M22 3c0 6.5-12 6.5-12 13s12 6.5 12 13" stroke="#fff" stroke-width="2.4" opacity=".55"/>
+     <path d="M12.5 7.5h7M12.5 24.5h7M14.5 16h3" stroke="#fff" stroke-width="1.6" opacity=".85"/></g>`],
+  ORBX: ['#160c2e', '#6c3ce0', // 오르빗 스페이스: 고리 달린 행성
+    `<circle cx="16" cy="16" r="7.2" fill="#fff"/><path d="M16 8.8a7.2 7.2 0 0 0 0 14.4a9 9 0 0 1 0-14.4z" fill="#c9b8ff" opacity=".7"/>
+     <ellipse cx="16" cy="16" rx="13.5" ry="3.8" fill="none" stroke="#fff" stroke-width="1.8" transform="rotate(-22 16 16)"/>
+     <circle cx="26" cy="6.5" r="1.3" fill="#fff"/><circle cx="6" cy="25" r=".9" fill="#fff" opacity=".8"/>`],
+  HYNV: ['#ff2d87', '#ff9a3c', // 하이퍼노바 AI: 폭발하는 별
+    `<path d="M16 2.5l2.7 10.8L29.5 16l-10.8 2.7L16 29.5l-2.7-10.8L2.5 16l10.8-2.7z" fill="#fff"/>
+     <path d="M25.5 4l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z" fill="#fff" opacity=".85"/>
+     <circle cx="16" cy="16" r="2.2" fill="#ff5a6e"/>`],
+  CLNH: ['#140f3a', '#8a5cf6', // 크립토루나: 초승달과 별
+    `<path d="M19.5 4.5a11.5 11.5 0 1 0 8 19.5A9.5 9.5 0 0 1 19.5 4.5z" fill="#fff"/>
+     <path d="M24 6.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill="#ffe27a"/><circle cx="27" cy="15" r="1" fill="#ffe27a"/>`],
+  BLZH: ['#c81e1e', '#ff9f1c', // 블레이즈 에너지: 불꽃
+    `<path d="M16 2.5c1.8 5 8.5 8.2 8.5 15.5a8.5 8.5 0 0 1-17 0c0-4.3 2.2-6.6 4.3-8.6 0 3.2 1.2 5.2 3.2 5.4-1.2-4.4 0-8.4 1-12.3z" fill="#fff"/>
+     <path d="M16 17.5c1.6 2.1 3.3 3.3 3.3 5.4a3.3 3.3 0 0 1-6.6 0c0-2.1 1.7-3.3 3.3-5.4z" fill="#ff8a1c"/>`],
+  QLKB: ['#0d47a1', '#26c6da', // 퀀텀레이크 바이오: 물방울과 물결
+    `<path d="M16 3.5c4.3 6.2 8.4 10.2 8.4 15.6a8.4 8.4 0 0 1-16.8 0c0-5.4 4.1-9.4 8.4-15.6z" fill="#fff"/>
+     <path d="M10 20.5c2-1.6 4-1.6 6 0s4 1.6 6 0" stroke="#1a8fd0" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+     <path d="M11 13.5a6 6 0 0 1 3-4" stroke="#1a8fd0" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".5"/>`],
+  '999550': ['#3182f6', '#6a3df0', // JH전자: JH증권 색에 반도체 칩 + 번개
+    `<rect x="8" y="8" width="16" height="16" rx="3.5" fill="#fff"/>
+     <g stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M12 4.5v3M16 4.5v3M20 4.5v3M12 24.5v3M16 24.5v3M20 24.5v3M4.5 12h3M4.5 16h3M4.5 20h3M24.5 12h3M24.5 16h3M24.5 20h3"/></g>
+     <path d="M17.2 10.5l-4.6 6.2h3.4l-1.2 4.8 4.6-6.2h-3.4z" fill="#5b5ff0"/>`],
+  // 로고 이미지를 구할 수 없는 해외 종목: 업종을 나타내는 심볼로
+  SPACEX: ['#05070d', '#2b3550', // 스페이스X: 로켓
+    `<path d="M16 3c3.6 3.2 5.2 7.6 5.2 12.6v5.2h-10.4v-5.2C10.8 10.6 12.4 6.2 16 3z" fill="#fff"/>
+     <circle cx="16" cy="12.5" r="2" fill="#2b3550"/><path d="M10.8 17.5l-3.3 3.6v3.4l3.3-1.8zM21.2 17.5l3.3 3.6v3.4l-3.3-1.8z" fill="#cfd6e6"/>
+     <path d="M13.4 22.5h5.2l-1 4.8h-3.2z" fill="#ff8a3c"/>`],
+  WISESAT: ['#0c2340', '#2a7de1', // 와이즈샛 스페이스: 위성
+    `<rect x="12.5" y="12.5" width="7" height="7" rx="1.2" fill="#fff" transform="rotate(45 16 16)"/>
+     <g fill="#9cc8ff"><rect x="3" y="13.8" width="7" height="4.4" rx=".6" transform="rotate(45 16 16)"/><rect x="22" y="13.8" width="7" height="4.4" rx=".6" transform="rotate(45 16 16)"/></g>
+     <path d="M23.5 4.5a6 6 0 0 1 4 4M22.5 7.5a3 3 0 0 1 2 2" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/>`],
+  'WF-HOLD': ['#3a0d0d', '#d13b3b', // WF 홀딩: 모노그램
+    `<path d="M5 9l3 14 3.5-9.5L15 23l3-14" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+     <path d="M20 23V9h7M20 15.5h5.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`],
+  STABLEX: ['#0b5d4b', '#22c39a', // 스테이블코인X: 코인
+    `<circle cx="16" cy="16" r="11" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="16" cy="16" r="7.5" fill="#fff" opacity=".18"/>
+     <path d="M19.5 12.2c-.8-1.1-2-1.7-3.5-1.7-2 0-3.4 1-3.4 2.6 0 3.6 7.2 2 7.2 5.8 0 1.6-1.5 2.7-3.7 2.7-1.6 0-3-.7-3.8-1.9M16 8.5v15" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`],
+  CEREBRAS: ['#1a1030', '#f05a28', // 세레브라스: 칩
+    `<rect x="9" y="9" width="14" height="14" rx="2.5" fill="#fff"/><rect x="12.5" y="12.5" width="7" height="7" rx="1" fill="#f05a28"/>
+     <g stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M12.5 5v4M16 5v4M19.5 5v4M12.5 23v4M16 23v4M19.5 23v4M5 12.5h4M5 16h4M5 19.5h4M23 12.5h4M23 16h4M23 19.5h4"/></g>`],
+};
 function badge(code) {
+  const art = FAKE_LOGOS[code];
+  if (art) return `<span class="lg-badge lg-art" style="background:linear-gradient(135deg, ${art[0]}, ${art[1]})"><svg viewBox="0 0 32 32" aria-hidden="true">${art[2]}</svg></span>`;
   const s = info(code), n = s.name;
-  let color = `hsl(${[...code].reduce((a, ch) => a + ch.charCodeAt(0) * 7, 0) % 360} 55% 45%)`;
+  // 기본: 종목마다 다른 색의 은은한 그라데이션
+  const hue = [...code].reduce((a, ch) => a + ch.charCodeAt(0) * 7, 0) % 360;
+  let color = `linear-gradient(135deg, hsl(${hue} 55% 38%), hsl(${(hue + 30) % 360} 65% 55%))`;
   if (/^KODEX/.test(n)) color = '#1b64f2';
   else if (/^TIGER/.test(n)) color = '#f57c00';
   else if (/^SOL/.test(n)) color = '#1689e8';
   else if (/^RISE/.test(n)) color = '#f2b705';
   else if (/^삼성/.test(n)) color = '#1428a0';
+  else if (/^JH /.test(n)) color = 'linear-gradient(135deg, #3182f6, #6a3df0)'; // JH증권 자체 ETF
   const lev = levOf(code) > 1 ? levOf(code) + 'x' : '';
   const inv = INVERSE.includes(code) || /인버스/.test(n);
   let text;
@@ -549,9 +807,13 @@ function badge(code) {
   return `<span class="lg-badge" style="background:${color}">${text}</span>`;
 }
 function logoSrcs(code) {
-  const srcs = [`https://static.toss.im/png-icons/securities/icn-sec-fill-${code}.png`];
-  if (/^\d{6}$/.test(code)) srcs.push(`https://ssl.pstatic.net/imgstock/fn/real/logo/png/stock/Stock${code}.png`);
-  else if (isUS(code) && !info(code).sub) srcs.push(`https://financialmodelingprep.com/image-stock/${code.replace('.', '-')}.png`);
+  if (info(code).fake || FAKE_LOGOS[code]) return []; // 가상 종목·전용 로고가 있는 종목은 바로 아이콘으로
+  const s = info(code), srcs = [], lc = s.logoCode || code;
+  // 해외는 네이버 로고(로이터 코드 기준)가 가장 정확해서 먼저 시도
+  if (s.rc != null) srcs.push(`https://ssl.pstatic.net/imgstock/fn/real/logo/png/stock/Stock${s.rc.startsWith('=') ? s.rc.slice(1) : code + s.rc}.png`);
+  srcs.push(`https://static.toss.im/png-icons/securities/icn-sec-fill-${lc}.png`);
+  if (/^\d{6}$/.test(lc)) srcs.push(`https://ssl.pstatic.net/imgstock/fn/real/logo/png/stock/Stock${lc}.png`);
+  else if (isUS(code) && !s.sub && s.rc == null) srcs.push(`https://financialmodelingprep.com/image-stock/${code.replace('.', '-')}.png`);
   return srcs;
 }
 // 목록이 몇 초마다 다시 그려지므로, 성공/실패한 주소를 기억해 깜빡임·재요청을 막음
@@ -606,17 +868,61 @@ function rankRows() {
     .join('');
 }
 
+// 검색: 이름(한글·영어), 종목코드·티커, 초성(ㅅㅅㅈㅈ → 삼성전자)
+const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const choOf = str => [...str].map(ch => {
+  const k = ch.charCodeAt(0) - 0xac00;
+  return k >= 0 && k < 11172 ? CHO[Math.floor(k / 588)] : ch;
+}).join('');
+const norm = str => (str || '').toLowerCase().replace(/\s+/g, '');
+let query = '';
+function searchRows() {
+  const q = norm(query), onlyCho = /^[ㄱ-ㅎ]+$/.test(q);
+  const score = s => {
+    const name = norm(s.name), code = s.code.toLowerCase();
+    if (code === q) return 0;
+    if (name === q) return 0.5;
+    if (onlyCho) { const c = (s._cho ||= norm(choOf(s.name))); return c.startsWith(q) ? 1 : c.includes(q) ? 3 : 9; }
+    if (name.startsWith(q)) return 1;
+    if (code.startsWith(q)) return 2;
+    if (name.includes(q)) return 3;
+    if (norm(s.eng).includes(q)) return 4;
+    return 9;
+  };
+  const hits = STOCKS.filter(s => state.tab === 'ALL' || s.mk === state.tab)
+    .map(s => [s, score(s)]).filter(([, sc]) => sc < 9)
+    .sort((a, b) => a[1] - b[1] || state.volume[b[0].code].amount - state.volume[a[0].code].amount);
+  $('q-info').textContent = hits.length ? `검색 결과 ${hits.length.toLocaleString('ko-KR')}개${hits.length > 50 ? ' · 위에서 50개만 보여요' : ''}` : '검색 결과가 없습니다.';
+  return hits.slice(0, 50).map(([s]) => priceRow(s.code)).join('');
+}
+
 function select(code) {
   state.sel = code;
   state.recent = [code, ...state.recent.filter(c => c !== code)].slice(0, 20);
   save();
+  if (isPhone()) openDetail();
   render();
 }
+
+// 휴대폰: 종목 상세를 전체 화면으로 열고, 폰의 뒤로가기로 닫음
+const isPhone = () => matchMedia('(max-width: 760px)').matches;
+function openDetail() {
+  if (document.body.classList.contains('detail-open')) return;
+  document.body.classList.add('detail-open');
+  $('detail').scrollTop = 0;
+  history.pushState({ detail: true }, '');
+}
+function closeDetail() { document.body.classList.remove('detail-open'); render(); }
+window.addEventListener('popstate', () => {
+  if (order) { closeOrder(); history.pushState({ detail: true }, ''); return; } // 주문 창부터 닫기
+  if (document.body.classList.contains('detail-open')) closeDetail();
+});
 
 function fillList(el, html) {
   el.innerHTML = html;
   el.querySelectorAll('li').forEach(li => {
     li.classList.toggle('sel', li.dataset.code === state.sel);
+    ensureHist(li.dataset.code);
     if (!li.hidden) draw(li.querySelector('canvas'), state.prices[li.dataset.code].hist, lineColor(li.dataset.code), false);
   });
 }
@@ -630,7 +936,11 @@ function render() {
   if (state.page === 'browse') {
     document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === state.tab));
     document.querySelectorAll('.sorts button').forEach(b => b.classList.toggle('on', b.dataset.sort === state.sort));
-    fillList($('browse-list'), rankRows());
+    // 검색어가 있으면 검색 결과, 없으면 순위
+    const searching = norm(query) !== '';
+    document.querySelector('.sorts').hidden = searching;
+    $('q-info').hidden = !searching;
+    fillList($('browse-list'), searching ? searchRows() : rankRows());
   }
 
   // 최근 본
@@ -648,10 +958,18 @@ function render() {
     return rowHTML(code, `${h.qty}주 · 평균 ${px(code, round(code, h.avg))}`, won(v),
       `${won(pl)} (${pct((cur / h.avg - 1) * 100)})`, cls(pl));
   });
-  const total = state.cash + value, pnl = value - cost, ret = (total / START_CASH - 1) * 100;
-  $('total').textContent = won(total);
+  // 총 자산 = 주문 가능 현금 + 미체결 매수로 묶인 현금 + 주식 평가금액
+  const total = state.cash + reservedCash() + value, pnl = value - cost, ret = (total / START_CASH - 1) * 100;
   $('total').className = cls(ret);
-  $('cash').textContent = won(state.cash);
+  // 휴대폰 상단 요약칸은 좁아서 억·만 단위로 짧게
+  const head = isPhone() ? shortWon : won;
+  $('total').textContent = head(total);
+  $('cash').textContent = head(state.cash);
+  // 투자금: 보유 주식의 현재 평가금액 (시세에 따라 실시간 변동) + 매입금액 대비 손익률
+  $('invest').textContent = head(value);
+  $('invest').className = cls(pnl);
+  $('invest-pnl').textContent = cost ? `${pnl > 0 ? '+' : ''}${head(pnl)} (${pct((value / cost - 1) * 100)})` : '';
+  $('invest-pnl').className = cls(pnl);
 
   // 내 주식
   if (state.page === 'mine') {
@@ -663,6 +981,9 @@ function render() {
     $('m-pnl').className = cls(pnl);
     fillList($('hold-list'), holds.join(''));
     $('hold-empty').hidden = holds.length > 0;
+    $('m-orders').innerHTML = ordersHTML(state.orders);
+    $('m-orders-empty').hidden = state.orders.length > 0;
+    $('m-reserved').textContent = state.orders.length ? `미체결 매수로 묶인 현금 ${won(reservedCash())}` : '';
     $('hist').innerHTML = state.trades.length
       ? state.trades.map(t => `<li><span><b class="${t.side === 'buy' ? 'up' : 'down'}">${t.side === 'buy' ? '매수' : '매도'}</b> ${t.name} ${t.n}주</span>
           <span class="muted">${px(t.code, t.p)} · ${new Date(t.t).toLocaleTimeString('ko-KR')}</span></li>`).join('')
@@ -673,20 +994,28 @@ function render() {
   const c = state.sel, s = info(c), ch = change(c), p = last(c), diff = p - state.prices[c].open;
   $('d-name').textContent = s.name;
   if ($('d-logo').dataset.code !== c) { $('d-logo').innerHTML = logoHTML(c); $('d-logo').dataset.code = c; }
-  $('d-code').textContent = `${subOf(c)} ·${s.mk === 'US' ? '해외' : '국내'}`;
+  $('d-code').textContent = `${subOf(c)} · ${s.market || (s.mk === 'US' ? '해외' : '국내')}`;
   $('d-price').textContent = px(c, p);
   $('d-price').className = 'big ' + cls(ch);
   $('d-change').textContent = `${pct(ch)} (${diff > 0 ? '+' : diff < 0 ? '-' : ''}${px(c, Math.abs(diff))})`;
   $('d-change').className = cls(ch);
+  ensureHist(c);
   draw($('chart'), state.prices[c].hist, lineColor(c), true);
   $('cost').textContent = `보유 ${heldQty(c)}주 · 최대 매수 ${maxBuy(c)}주`;
+  // 이 종목의 미체결 주문
+  const mine = state.orders.filter(o => o.code === c);
+  $('d-orders').innerHTML = ordersHTML(mine);
+  $('d-orders-wrap').hidden = !mine.length;
   renderBook();
   renderOrder();
 }
 
 // 이벤트
 // 매도호가를 누르면 매수, 매수호가를 누르면 매도 주문 창
-$('book').addEventListener('click', e => { const r = e.target.closest('.br'); if (r) openOrder(r.dataset.side); });
+// 호가를 누르면 그 가격으로 매수 주문 창 (창 안에서 매도로 바꿀 수 있음)
+$('book').addEventListener('click', e => { const r = e.target.closest('.br'); if (r) openOrder('buy', Number(r.dataset.px)); });
+// 미체결 주문 취소
+document.addEventListener('click', e => { const b = e.target.closest('[data-cancel]'); if (b) cancelOrder(Number(b.dataset.cancel)); });
 for (const id of ['browse-list', 'recent-list', 'hold-list'])
   $(id).addEventListener('click', e => { const li = e.target.closest('li'); if (li) select(li.dataset.code); });
 document.querySelectorAll('.nav button').forEach(b =>
@@ -695,6 +1024,8 @@ document.querySelectorAll('.tabs button').forEach(b =>
   b.addEventListener('click', () => { state.tab = b.dataset.tab; save(); render(); }));
 document.querySelectorAll('.sorts button').forEach(b =>
   b.addEventListener('click', () => { state.sort = b.dataset.sort; save(); render(); }));
+$('q').addEventListener('input', e => { query = e.target.value; render(); });
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); }); // 폰에서 검색 누르면 키보드 닫기
 $('buy').addEventListener('click', () => openOrder('buy'));
 $('sell').addEventListener('click', () => openOrder('sell'));
 $('mo-qty').addEventListener('input', () => { $('mo-err').textContent = ''; renderOrder(); });
@@ -704,10 +1035,23 @@ document.querySelectorAll('#modal .quick [data-q]').forEach(b => b.addEventListe
   renderOrder();
 }));
 $('mo-max').addEventListener('click', () => {
-  $('mo-qty').value = order.side === 'buy' ? maxBuy(order.code) : heldQty(order.code);
+  $('mo-qty').value = order.side === 'buy' ? maxBuy(order.code, moPrice() || last(order.code)) : Math.max(0, sellable(order.code));
   $('mo-err').textContent = '';
   renderOrder();
 });
+// 가격: 직접 입력, 호가 단위로 −/+, 현재가로
+$('mo-px').addEventListener('input', () => { $('mo-err').textContent = ''; renderOrder(); });
+$('mo-px').addEventListener('change', () => { const p = moPrice(); if (p) $('mo-px').value = p; renderOrder(); });
+$('mo-px').addEventListener('keydown', e => { if (e.key === 'Enter') submitOrder(); });
+const nudge = dir => {
+  const p = moPrice() || last(order.code), t = tickSize(order.code, dir < 0 ? p - 1e-9 : p);
+  $('mo-px').value = Math.max(t, snap(order.code, round(order.code, p) + dir * t));
+  renderOrder();
+};
+$('mo-px-down').addEventListener('click', () => nudge(-1));
+$('mo-px-up').addEventListener('click', () => nudge(1));
+$('mo-px-cur').addEventListener('click', () => { $('mo-px').value = last(order.code); renderOrder(); });
+document.querySelectorAll('.mo-side button').forEach(b => b.addEventListener('click', () => setSide(b.dataset.side)));
 $('mo-ok').addEventListener('click', submitOrder);
 $('mo-cancel').addEventListener('click', closeOrder);
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeOrder(); });
@@ -720,6 +1064,11 @@ $('reset').addEventListener('click', () => {
   msg('초기화되었습니다.');
 });
 window.addEventListener('resize', render);
+$('d-back').addEventListener('click', () => history.back());
+
+// 앱 설치(PWA)용 서비스 워커: https 또는 localhost 에서만 동작
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost'))
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 
 render();
 setTimeout(tick, 3000 + Math.random() * 2000);

@@ -2,8 +2,12 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>JH증권</title>
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1b1d21" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%233182f6'/%3E%3Cstop offset='1' stop-color='%236a3df0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='40' rx='11' fill='url(%23g)'/%3E%3Cpath d='M8 27 L16 19 L21 23 L31 12' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M25 12 H31 V18' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -27,13 +31,23 @@
       <span>JH<em>증권</em></span>
     </h1>
     <nav class="nav">
-      <button data-page="browse">주식 둘러보기</button>
-      <button data-page="recent">최근 본</button>
-      <button data-page="mine">내 주식</button>
+      <button data-page="browse">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V10M10 19V5M16 19v-7M22 19H2" /></svg>
+        <span>주식 둘러보기</span>
+      </button>
+      <button data-page="recent">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+        <span>최근 본</span>
+      </button>
+      <button data-page="mine">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="3" /><path d="M3 10h18M8 6V4h8v2" /></svg>
+        <span>내 주식</span>
+      </button>
     </nav>
     <div class="summary">
       <div><span>총 자산</span><b id="total">-</b></div>
       <div><span>현금</span><b id="cash">-</b></div>
+      <div><span>투자금</span><b id="invest">-</b> <small id="invest-pnl"></small></div>
     </div>
   </header>
 
@@ -42,6 +56,11 @@
       <!-- 주식 둘러보기 -->
       <section class="panel page" id="page-browse">
         <h2>주식 둘러보기</h2>
+        <div class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
+          <input id="q" type="search" placeholder="종목명, 코드, 초성(ㅅㅅㅈㅈ) 검색" autocomplete="off" enterkeyhint="search">
+        </div>
+        <p id="q-info" class="muted q-info" hidden></p>
         <div class="tabs">
           <button data-tab="ALL">전체</button>
           <button data-tab="KR">국내</button>
@@ -80,6 +99,12 @@
           <p id="hold-empty" class="muted">아직 보유한 종목이 없습니다.</p>
         </div>
         <div class="panel">
+          <h2>미체결 주문</h2>
+          <ul class="orders" id="m-orders"></ul>
+          <p id="m-orders-empty" class="muted">걸어 둔 주문이 없습니다.</p>
+          <p id="m-reserved" class="muted"></p>
+        </div>
+        <div class="panel">
           <h2>거래 내역</h2>
           <ul id="hist"></ul>
           <button id="reset" class="ghost">자산 초기화</button>
@@ -87,7 +112,10 @@
       </section>
     </div>
 
-    <section class="panel detail">
+    <section class="panel detail" id="detail">
+      <button id="d-back" class="d-back" aria-label="뒤로">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+      </button>
       <div class="detail-head">
         <div class="d-title">
           <span id="d-logo"></span>
@@ -112,8 +140,13 @@
       </div>
       <p id="msg" class="msg"></p>
 
+      <div class="d-orders-wrap" id="d-orders-wrap" hidden>
+        <h3>미체결 주문</h3>
+        <ul class="orders" id="d-orders"></ul>
+      </div>
+
       <div class="book-wrap">
-        <h3>호가 <small class="muted">매도는 파랑, 매수는 빨강 · 누르면 주문</small></h3>
+        <h3>호가 <small class="muted">가격을 누르면 그 가격으로 주문</small></h3>
         <div id="book" class="book"></div>
         <div class="book-sum muted"><span id="ask-total"></span><span id="bid-total"></span></div>
       </div>
@@ -122,12 +155,32 @@
 
   <div id="modal" class="modal" hidden>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mo-title">
-      <h3 id="mo-title"></h3>
+      <div class="mo-head">
+        <h3 id="mo-title"></h3>
+        <div class="mo-side">
+          <button data-side="buy">매수</button>
+          <button data-side="sell">매도</button>
+        </div>
+      </div>
       <p id="mo-price" class="muted"></p>
+      <label class="mo-label" for="mo-px">가격</label>
+      <div class="mo-row">
+        <button id="mo-px-down" class="step" aria-label="한 호가 내리기">−</button>
+        <input id="mo-px" type="number" min="0" inputmode="decimal">
+        <span id="mo-unit">원</span>
+        <button id="mo-px-up" class="step" aria-label="한 호가 올리기">+</button>
+        <button id="mo-px-cur" class="cur-btn">현재가</button>
+      </div>
+      <p id="mo-hint" class="mo-hint"></p>
       <label class="mo-label" for="mo-qty">수량</label>
       <div class="mo-row">
         <input id="mo-qty" type="number" min="1" inputmode="numeric">
         <span>주</span>
+      </div>
+      <div class="quick minus">
+        <button data-q="-1">−1</button>
+        <button data-q="-10">−10</button>
+        <button data-q="-100">−100</button>
       </div>
       <div class="quick">
         <button data-q="1">+1</button>
@@ -149,6 +202,7 @@
   </div>
 
   <div id="toast"></div>
+  <script src="stocks-data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
