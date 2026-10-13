@@ -759,15 +759,18 @@ function drawCrosshair() {
   // 라벨: 가격 · 등락률 · 몇 분 전 (시세는 평균 4초마다 움직임)
   const ago = (g.n - 1 - i) * g.per * 4;
   const when = ago < 5 ? '지금' : ago < 60 ? `${ago}초 전` : `${Math.floor(ago / 60)}분 ${ago % 60 ? (ago % 60) + '초 ' : ''}전`;
-  const t1 = px(c, v), t2 = `${pct(ch)} · ${when}`;
+  // 그 지점에서 지금(현재가)까지 몇 % 움직였는지 = 그때 샀다면 지금 수익률
+  const since = (last(c) / v - 1) * 100, sinceCol = since >= 0 ? css('--up') : css('--down');
+  const t1 = px(c, v), t2 = `전일 대비 ${pct(ch)} · ${when}`, t3 = ago < 5 ? '' : `여기서 지금까지 ${pct(since)}`;
   ctx.font = '700 13px sans-serif'; const w1 = ctx.measureText(t1).width;
-  ctx.font = '600 12px sans-serif'; const w2 = ctx.measureText(t2).width;
-  const bw = Math.max(w1, w2) + 20, bh = 44, bx = Math.min(Math.max(cx - bw / 2, 2), w - bw - 2), by = 4;
+  ctx.font = '600 12px sans-serif'; const w2 = ctx.measureText(t2).width, w3 = ctx.measureText(t3).width;
+  const bw = Math.max(w1, w2, w3) + 20, bh = t3 ? 62 : 44, bx = Math.min(Math.max(cx - bw / 2, 2), w - bw - 2), by = 4;
   ctx.fillStyle = css('--text'); ctx.globalAlpha = 0.92;
   ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 8) : ctx.rect(bx, by, bw, bh); ctx.fill();
   ctx.globalAlpha = 1; ctx.fillStyle = css('--panel'); ctx.textAlign = 'center';
   ctx.font = '700 13px sans-serif'; ctx.fillText(t1, bx + bw / 2, by + 19);
   ctx.fillStyle = col; ctx.font = '600 12px sans-serif'; ctx.fillText(t2, bx + bw / 2, by + 36);
+  if (t3) { ctx.fillStyle = sinceCol; ctx.fillText(t3, bx + bw / 2, by + 54); }
   ctx.restore();
 }
 function redrawChart() {
