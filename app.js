@@ -1066,6 +1066,23 @@ $('reset').addEventListener('click', () => {
 window.addEventListener('resize', render);
 $('d-back').addEventListener('click', () => history.back());
 
+// 다크 / 라이트 모드: 직접 고른 값이 없으면 기기 설정을 따름
+const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+const isDark = () => (document.documentElement.dataset.theme || (darkMQ.matches ? 'dark' : 'light')) === 'dark';
+function applyTheme() {
+  document.documentElement.classList.toggle('is-dark', isDark());
+  document.querySelectorAll('meta[name=theme-color]').forEach(m => m.setAttribute('content', isDark() ? '#1b1d21' : '#ffffff'));
+  render(); // 차트 색을 새 테마로 다시 그림
+}
+$('theme').addEventListener('click', () => {
+  const next = isDark() ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('jh-theme', next); } catch {}
+  applyTheme();
+});
+darkMQ.addEventListener?.('change', applyTheme);
+document.documentElement.classList.toggle('is-dark', isDark());
+
 // 앱 설치(PWA)용 서비스 워커: https 또는 localhost 에서만 동작
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost'))
   navigator.serviceWorker.register('sw.js').catch(() => {});
