@@ -823,13 +823,13 @@ function nextLogo(img) {
   const rest = img.dataset.rest ? img.dataset.rest.split('|') : [];
   if (rest.length) { img.dataset.rest = rest.slice(1).join('|'); img.src = rest[0]; } else img.remove();
 }
-function logoLoaded(img) { logoOk[img.dataset.code] = img.getAttribute('src'); }
+function logoLoaded(img) { logoOk[img.dataset.code] = img.getAttribute('src'); img.classList.add('ok'); }
 function logoHTML(code) {
   const srcs = logoOk[code] ? [logoOk[code]] : logoSrcs(code).filter(u => !logoBad.has(u));
   const flag = isUS(code) ? '<span class="flag"></span>' : '';
   if (!srcs.length) return `<span class="lg">${badge(code)}${flag}</span>`;
   const [first, ...rest] = srcs;
-  return `<span class="lg">${badge(code)}<img src="${first}" data-code="${code}" data-rest="${rest.join('|')}" alt=""
+  return `<span class="lg">${badge(code)}<img src="${first}"${logoOk[code] ? ' class="ok"' : ''} data-code="${code}" data-rest="${rest.join('|')}" alt=""
     onload="logoLoaded(this)" onerror="nextLogo(this)">${flag}</span>`;
 }
 
