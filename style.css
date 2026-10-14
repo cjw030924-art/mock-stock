@@ -420,3 +420,18 @@ main {
 .acc-form input { padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
 .acc-switch { font-size: 13px; color: var(--muted); }
 .link { background: none; color: var(--accent); padding: 0; font-weight: 700; }
+
+/* 프로필 사진·설정 창 */
+.avatar { width: 32px; height: 32px; border-radius: 50%; flex: none; object-fit: cover; display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #3182f6, #6a3df0); color: #fff; font-weight: 700; font-size: 14px; vertical-align: middle; }
+.acc-who { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.modal.center { align-items: center; padding: 16px; }
+.modal.center .sheet { border-radius: 16px; max-width: 360px; animation: none; padding: 22px; }
+.pf-photo { display: flex; align-items: center; gap: 14px; margin: 16px 0 4px; }
+.pf-photo .avatar { width: 72px; height: 72px; font-size: 28px; }
+.pf-photo-btns { display: flex; flex-direction: column; gap: 6px; }
+.pf-photo-btns [hidden] { display: none; }
+.pf-nick { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 12px; font: inherit; font-size: 16px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+.pf-ok { background: var(--accent); }
+.pf-ok:disabled { opacity: .6; }

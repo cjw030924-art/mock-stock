@@ -4,7 +4,7 @@
 //  - 시세(prices)는 지금처럼 각 기기에서 만들어지고 저장하지 않음
 const SYNC_MS = 30_000;
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
-const cloud = { ready: false, user: null, nick: '', db: null, rankTimer: null, rankAt: 0, rows: [], mode: 'login', pendingNick: '' };
+const cloud = { ready: false, user: null, nick: '', db: null, rankTimer: null, rankAt: 0, rows: [], mode: 'login', pendingNick: '', photo: '' };
 // Firebase 는 이메일로 계정을 만들므로, 아이디를 가짜 이메일로 바꿔서 씀 (실제 메일은 안 감)
 const ID_DOMAIN = '@jh-stock.app';
 const idOf = user => (user.email || '').replace(ID_DOMAIN, '');
@@ -44,7 +44,7 @@ async function initCloud() {
 
 async function onUser(user) {
   cloud.user = user;
-  cloud.nick = '';
+  cloud.nick = ''; cloud.photo = '';
   if (user) {
     try {
       const doc = await userRef().get();
@@ -53,6 +53,7 @@ async function onUser(user) {
         const d = doc.data();
         Object.assign(state, d.data);
         cloud.nick = d.nick;
+        cloud.photo = d.photo || '';
         save(); render();
         msg(`${d.nick}님, 저장된 자산을 불러왔습니다.`);
       } else {
@@ -85,11 +86,12 @@ async function pushCloud() {
   const total = totalAssets();
   try {
     await userRef().set({
-      nick: cloud.nick, total: Math.round(total), ret: Math.round((total / START_CASH - 1) * 10000) / 100,
+      nick: cloud.nick, photo: cloud.photo || '', total: Math.round(total), ret: Math.round((total / START_CASH - 1) * 10000) / 100,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       data: JSON.parse(JSON.stringify(portfolio())), // undefined 값 제거
     });
-  } catch {}
+    return true;
+  } catch { return false; }
 }
 
 function renderAccount() {
@@ -101,8 +103,8 @@ function renderAccount() {
   if (!cloud.ready) { box.innerHTML = '<p class="muted">로그인 기능을 불러오는 중…</p><p id="acc-msg" class="muted"></p>'; return; }
   const join = cloud.mode === 'join';
   box.innerHTML = cloud.user
-    ? `<div class="acc-row"><span><b>${esc(cloud.nick || '…')}</b> <small class="muted">아이디 ${esc(idOf(cloud.user))}</small></span>
-       <span><button id="acc-nick" class="ghost">닉네임 변경</button> <button id="acc-out" class="ghost">로그아웃</button></span></div>
+    ? `<div class="acc-row"><span class="acc-who">${avatar(cloud.nick, cloud.photo)}<b>${esc(cloud.nick || '…')}</b> <small class="muted">아이디 ${esc(idOf(cloud.user))}</small></span>
+       <span><button id="acc-prof" class="ghost">프로필 설정</button> <button id="acc-out" class="ghost">로그아웃</button></span></div>
        <p id="acc-msg" class="muted">30초마다 자산이 계정에 저장되고 순위에 반영됩니다.</p>`
     : `<p class="muted">${join ? '회원가입하면 지금 이 기기의 자산이 계정으로 옮겨지고 순위에 참여해요.' : '로그인하면 다른 기기에서도 이어서 하고, 순위에 참여할 수 있어요.'}</p>
        <form id="acc-form" class="acc-form">
@@ -116,10 +118,7 @@ function renderAccount() {
   $('acc-mode')?.addEventListener('click', () => { cloud.mode = join ? 'login' : 'join'; renderAccount(); });
   $('acc-form')?.addEventListener('submit', e => { e.preventDefault(); submitAuth(join); });
   $('acc-out')?.addEventListener('click', async () => { await pushCloud(); firebase.auth().signOut(); });
-  $('acc-nick')?.addEventListener('click', async () => {
-    const n = askNick(cloud.nick);
-    if (n) { cloud.nick = n; await pushCloud(); renderAccount(); if (state.page === 'rank') refreshRank(); }
-  });
+  $('acc-prof')?.addEventListener('click', openProfile);
 }
 
 // 로그인 / 회원가입
@@ -149,6 +148,85 @@ async function submitAuth(join) {
   } catch (e) { cloud.pendingNick = ''; say(AUTH_ERR[e.code] || '실패했습니다: ' + e.message); }
 }
 
+// 프로필 사진 (없으면 닉네임 첫 글자)
+const avatar = (nick, photo) => photo && /^data:image\/(jpeg|png|webp);base64,/.test(photo)
+  ? `<img class="avatar" src="${photo}" alt="">`
+  : `<span class="avatar">${esc((nick || '?').slice(0, 1))}</span>`;
+
+// 프로필 설정 창: 닉네임·사진 바꾸기
+const PHOTO_PX = 128; // 사진은 128px 정사각형 JPEG 로 줄여서 계정 문서에 같이 저장 (보통 5~10KB)
+let prof = null; // 창에서 고치는 중인 값 { photo }
+function openProfile() {
+  let m = $('pf-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'pf-modal'; m.className = 'modal center';
+    m.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pf-title">
+        <h3 id="pf-title">프로필 설정</h3>
+        <div class="pf-photo"><span id="pf-av"></span>
+          <span class="pf-photo-btns"><button id="pf-pick" class="ghost">사진 바꾸기</button><button id="pf-del" class="ghost">사진 삭제</button></span>
+          <input id="pf-file" type="file" accept="image/*" hidden></div>
+        <label class="mo-label" for="pf-nick">닉네임 (2~12자)</label>
+        <input id="pf-nick" class="pf-nick" maxlength="12">
+        <p id="pf-err" class="msg up"></p>
+        <div class="mo-btns"><button id="pf-cancel" class="cancel">취소</button><button id="pf-ok" class="ok pf-ok">저장</button></div>
+      </div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) closeProfile(); });
+    $('pf-cancel').addEventListener('click', closeProfile);
+    $('pf-pick').addEventListener('click', () => $('pf-file').click());
+    $('pf-del').addEventListener('click', () => { prof.photo = ''; drawProfile(); });
+    $('pf-file').addEventListener('change', async e => {
+      const f = e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      try { prof.photo = await shrinkPhoto(f); drawProfile(); } catch { $('pf-err').textContent = '이 사진은 쓸 수 없습니다. 다른 사진을 골라 주세요.'; }
+    });
+    $('pf-nick').addEventListener('input', drawProfile);
+    $('pf-nick').addEventListener('keydown', e => { if (e.key === 'Enter') saveProfile(); });
+    $('pf-ok').addEventListener('click', saveProfile);
+  }
+  prof = { photo: cloud.photo };
+  $('pf-nick').value = cloud.nick;
+  $('pf-err').textContent = '';
+  m.hidden = false;
+  drawProfile();
+}
+function drawProfile() {
+  $('pf-av').innerHTML = avatar($('pf-nick').value.trim() || cloud.nick, prof.photo);
+  $('pf-del').hidden = !prof.photo;
+}
+function closeProfile() { $('pf-modal').hidden = true; prof = null; }
+async function saveProfile() {
+  const n = $('pf-nick').value.trim();
+  if (n.length < 2 || n.length > 12) { $('pf-err').textContent = '닉네임은 2~12자로 해 주세요.'; return; }
+  const before = { nick: cloud.nick, photo: cloud.photo };
+  cloud.nick = n; cloud.photo = prof.photo;
+  $('pf-ok').disabled = true;
+  const ok = await pushCloud();
+  $('pf-ok').disabled = false;
+  if (!ok) { Object.assign(cloud, before); $('pf-err').textContent = '저장하지 못했습니다. 인터넷 연결을 확인해 주세요.'; return; }
+  closeProfile();
+  renderAccount();
+  if (state.page === 'rank') renderRank();
+  msg('프로필을 바꿨습니다.');
+}
+// 가운데를 정사각형으로 잘라 PHOTO_PX 크기로 줄임
+function shrinkPhoto(file) {
+  return new Promise((ok, fail) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(img.width, img.height), c = document.createElement('canvas');
+      c.width = c.height = PHOTO_PX;
+      c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, PHOTO_PX, PHOTO_PX);
+      URL.revokeObjectURL(url);
+      ok(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); fail(); };
+    img.src = url;
+  });
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && prof) closeProfile(); });
+
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // 순위 화면
@@ -174,7 +252,7 @@ function renderRank() {
   const me = cloud.user.uid;
   list.innerHTML = cloud.rows.map((r, i) => `<li class="${r.uid === me ? 'me' : ''}">
       <span class="rk ${i < 3 ? 'top' : ''}">${i + 1}</span>
-      <span class="rn">${esc(r.nick)}${r.uid === me ? ' <small>(나)</small>' : ''}</span>
+      ${avatar(r.nick, r.photo)}<span class="rn">${esc(r.nick)}${r.uid === me ? ' <small>(나)</small>' : ''}</span>
       <span class="rv"><b>${won(r.total)}</b><small class="${cls(r.ret)}">${pct(r.ret || 0)}</small></span></li>`).join('');
   $('rank-msg').textContent = cloud.rows.length
     ? `${cloud.rows.length}명 · 30초마다 새로고침 · 마지막 ${new Date(cloud.rankAt).toLocaleTimeString('ko-KR')}`
