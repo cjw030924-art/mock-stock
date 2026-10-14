@@ -251,7 +251,7 @@ function renderRank() {
   if (!cloud.user) { list.innerHTML = ''; $('rank-msg').textContent = '내 주식 화면에서 로그인하면 순위를 볼 수 있어요.'; return; }
   const me = cloud.user.uid;
   list.innerHTML = cloud.rows.map((r, i) => `<li class="${r.uid === me ? 'me' : ''}">
-      <span class="rk ${i < 3 ? 'top' : ''}">${i + 1}</span>
+      <span class="rk ${i < 3 ? 'rk-top' : ''}">${i + 1}</span>
       ${avatar(r.nick, r.photo)}<span class="rn">${esc(r.nick)}${r.uid === me ? ' <small>(나)</small>' : ''}</span>
       <span class="rv"><b>${won(r.total)}</b><small class="${cls(r.ret)}">${pct(r.ret || 0)}</small></span></li>`).join('');
   $('rank-msg').textContent = cloud.rows.length

@@ -411,8 +411,8 @@ main {
 .rank li { display: flex; align-items: center; gap: 12px; padding: 11px 6px; border-bottom: 1px solid var(--line); }
 .rank li.me { background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 10px; }
 .rank .rk { width: 28px; text-align: center; font-weight: 800; color: var(--muted); flex: none; }
-.rank .rk.top { color: var(--accent); }
-.rank .rn { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank .rk.rk-top { color: var(--accent); }
+.rank .rn { flex: 1; text-align: left; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank .rv { text-align: right; display: flex; flex-direction: column; }
 .rank .rv small { font-size: 12px; }
 #rank-msg { font-size: 13px; }
