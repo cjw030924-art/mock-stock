@@ -244,6 +244,7 @@ const STOCKS = [
   { code: 'QLKB', mk: 'US', name: '퀀텀레이크 바이오 홀딩스', price: 1.19, vol: 0.04, rate: 71.5, amt: 0.66, meme: 'extreme', fake: true },
   // 가상의 국내 대형주 (JH증권 계열). 거래대금 24.5억 → 국내 거래대금 10위 안팎에서 시작
   { code: '999550', mk: 'KR', name: 'JH전자', price: 87400, vol: 0.006, rate: 3.24, amt: 24.5, fake: true },
+  { code: '999660', mk: 'KR', name: '청운바이오', price: 4185, vol: 0.004, rate: 4.2, amt: 1.3, swing: true, fake: true }, // swing: +30% ~ −30% 사이를 계속 오르내림
   // 가상의 고배율 레버리지 ETF: 기초 종목(track)이 움직인 비율 × lev 만큼 움직임. 시작 등락률도 기초 종목 × 배수
   { code: 'NQTX', sub: 'ETF', mk: 'US', name: 'JH 나스닥100 10배 ETF', price: 13.85, vol: 0.03, rate: -29.4, amt: 0.72, track: 'QQQ', lev: 10, wild: true, fake: true }, // wild: 상승장·하락장이 크게 얹힘
   { code: 'SPFV', sub: 'ETF', mk: 'US', name: 'JH S&P500 5배 ETF', price: 42.15, vol: 0.01, rate: -0.75, amt: 0.38, track: 'VOO', lev: 5, fake: true },
@@ -470,6 +471,21 @@ function wildDrift(s) {
   return (w.up ? 1 : -1) * w.drift * (0.4 + Math.random() * 1.2);
 }
 
+// 왕복(swing) 종목: +25~30%까지 오르면 −25~30%를 향해 내려가고, 거기 닿으면 다시 올라감 (±30% 밖으로는 안 나감)
+const swing = {}; // code -> { target, drift }
+function swingDrift(s) {
+  const ch = change(s.code);
+  let w = swing[s.code];
+  if (!w || (w.target > 0 ? ch >= w.target : ch <= w.target)) {
+    const up = w ? w.target < 0 : ch < 0;
+    w = swing[s.code] = { target: (up ? 1 : -1) * (25 + Math.random() * 5), drift: 0.005 + Math.random() * 0.005 };
+  }
+  let r = (w.target > 0 ? 1 : -1) * w.drift * (0.3 + Math.random() * 1.4);
+  // 상한가·하한가처럼 시가 대비 ±30%를 넘지 않게 자름
+  const open = state.prices[s.code].open, cur = last(s.code);
+  return Math.min(open * 1.3 / cur - 1, Math.max(open * 0.7 / cur - 1, r));
+}
+
 function step(s) {
   // 가상 고배율 ETF: 이번에 기초 종목이 움직인 비율 × 배수 (+ 아주 작은 괴리)
   if (s.track) {
@@ -491,6 +507,7 @@ function step(s) {
     // (뉴스 알림은 띄우지 않고 가격에만 반영)
   }
   if (s.meme) r += memeDrift(s);
+  if (s.swing) r = swingDrift(s) + (Math.random() - 0.5) * s.vol;
   const h = state.prices[s.code].hist;
   h.push(Math.max(isUS(s.code) ? 0.0001 : 1, round(s.code, last(s.code) * (1 + r))));
   if (h.length > HIST_LEN) h.shift();
