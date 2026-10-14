@@ -244,7 +244,12 @@ const STOCKS = [
   { code: 'QLKB', mk: 'US', name: '퀀텀레이크 바이오 홀딩스', price: 1.19, vol: 0.04, rate: 71.5, amt: 0.66, meme: 'extreme', fake: true },
   // 가상의 국내 대형주 (JH증권 계열). 거래대금 24.5억 → 국내 거래대금 10위 안팎에서 시작
   { code: '999550', mk: 'KR', name: 'JH전자', price: 87400, vol: 0.006, rate: 3.24, amt: 24.5, fake: true },
-  { code: '999660', mk: 'KR', name: '청운바이오', price: 4185, vol: 0.004, rate: 4.2, amt: 1.3, swing: true, fake: true, logo: 'icons/cwu.png' }, // swing: +30% ~ −30% 사이를 계속 오르내림
+  { code: '999660', mk: 'KR', name: '청운바이오', price: 4185, vol: 0.004, rate: 4.2, amt: 1.3, swing: true, fake: true, logo: 'icons/cwu.png' },
+  // 가상의 청운 계열 일반 종목
+  { code: '999670', mk: 'KR', name: '청운건설', price: 12850, vol: 0.005, rate: -1.15, amt: 2.1, fake: true },
+  { code: '999680', mk: 'KR', name: '청운화학', price: 38400, vol: 0.004, rate: 0.79, amt: 3.4, fake: true },
+  { code: '999690', mk: 'KR', name: '청운식품', price: 7620, vol: 0.004, rate: 0.53, amt: 0.9, fake: true },
+  { code: '999700', mk: 'KR', name: '청운에너지', price: 21300, vol: 0.006, rate: -2.07, amt: 1.8, fake: true }, // swing: +30% ~ −30% 사이를 계속 오르내림
   // 가상의 고배율 레버리지 ETF: 기초 종목(track)이 움직인 비율 × lev 만큼 움직임. 시작 등락률도 기초 종목 × 배수
   { code: 'NQTX', sub: 'ETF', mk: 'US', name: 'JH 나스닥100 10배 ETF', price: 13.85, vol: 0.03, rate: -29.4, amt: 0.72, track: 'QQQ', lev: 10, wild: true, fake: true }, // wild: 상승장·하락장이 크게 얹힘
   { code: 'SPFV', sub: 'ETF', mk: 'US', name: 'JH S&P500 5배 ETF', price: 42.15, vol: 0.01, rate: -0.75, amt: 0.38, track: 'VOO', lev: 5, fake: true },
