@@ -1213,7 +1213,7 @@ function fillList(el, html) {
 function render() {
   // 페이지 전환
   document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.page === state.page));
-  for (const p of ['browse', 'recent', 'mine']) $('page-' + p).hidden = p !== state.page;
+  for (const p of ['browse', 'recent', 'mine', 'rank']) $('page-' + p).hidden = p !== state.page;
 
   // 주식 둘러보기
   if (state.page === 'browse') {

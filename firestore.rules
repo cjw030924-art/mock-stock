@@ -1,0 +1,15 @@
+rules_version = '2';
+// Firebase 콘솔 → Firestore Database → 규칙 탭에 이 내용을 붙여 넣고 게시하세요.
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /users/{uid} {
+      // 순위는 로그인한 사람이면 누구나 볼 수 있음
+      allow read: if request.auth != null;
+      // 쓰기는 자기 문서만, 닉네임 2~12자·총 자산은 숫자
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.nick is string
+        && request.resource.data.nick.size() >= 2 && request.resource.data.nick.size() <= 12
+        && request.resource.data.total is number;
+    }
+  }
+}

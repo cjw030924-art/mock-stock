@@ -400,3 +400,19 @@ main {
 
 /* 해외 종목 현재가 옆 원화 환산 */
 #d-price .krw { font-size: 14px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+
+/* 내 계정 (로그인) */
+.acc-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.acc-in { background: var(--accent); color: #fff; padding: 9px 14px; font-weight: 700; }
+#account p { margin: 8px 0 0; font-size: 13px; }
+
+/* 순위 */
+.rank { list-style: none; margin: 0; padding: 0; }
+.rank li { display: flex; align-items: center; gap: 12px; padding: 11px 6px; border-bottom: 1px solid var(--line); }
+.rank li.me { background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 10px; }
+.rank .rk { width: 28px; text-align: center; font-weight: 800; color: var(--muted); flex: none; }
+.rank .rk.top { color: var(--accent); }
+.rank .rn { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank .rv { text-align: right; display: flex; flex-direction: column; }
+.rank .rv small { font-size: 12px; }
+#rank-msg { font-size: 13px; }
