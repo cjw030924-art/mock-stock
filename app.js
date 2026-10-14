@@ -714,8 +714,21 @@ function renderOrder() {
   document.querySelectorAll('.mo-side button').forEach(b => b.classList.toggle('on', b.dataset.side === side));
   const ed = order.edit;
   $('mo-title').textContent = info(code).name + (ed ? ' 주문 수정' : '');
-  $('mo-price').textContent = `현재가 ${px(code, cur)}${isUS(code) ? ` · 환율 ${FX.toLocaleString('ko-KR')}원` : ''}`
-    + (ed ? ` · 원래 주문 ${ed.n}주 ${px(code, ed.price)}` : '');
+  // 실시간 현재가: 값이 바뀌면 오르면 빨강, 내리면 파랑으로 잠깐 깜빡임
+  const ch = change(code), curEl = $('mo-cur');
+  let flash = '';
+  if (order.shown !== undefined && order.shown !== cur) {
+    flash = cur > order.shown ? ' flash-up' : ' flash-down';
+    curEl.className = '';
+    void curEl.offsetWidth; // 애니메이션 다시 시작
+  } else flash = curEl.className.match(/ flash-(up|down)/)?.[0] || '';
+  order.shown = cur;
+  curEl.textContent = px(code, cur);
+  curEl.className = cls(ch) + flash;
+  $('mo-chg').textContent = pct(ch);
+  $('mo-chg').className = cls(ch);
+  $('mo-price').textContent = [isUS(code) ? `환율 ${FX.toLocaleString('ko-KR')}원` : '', ed ? `원래 주문 ${ed.n}주 ${px(code, ed.price)}` : '']
+    .filter(Boolean).join(' · ');
   $('mo-unit').textContent = isUS(code) ? '$' : '원';
   $('mo-max').textContent = buy ? '최대 매수' : '전부 매도';
   $('mo-ok').textContent = ed ? '수정하기' : buy ? '매수 주문' : '매도 주문';

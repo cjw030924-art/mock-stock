@@ -382,3 +382,18 @@ main {
   #toast { bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 40; }
 }
 @keyframes sheet-up { from { transform: translateY(40px); opacity: .5; } }
+
+/* 주문 창 실시간 현재가 */
+.mo-live { display: flex; align-items: center; gap: 10px; margin: 12px 0 6px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+.mo-live-label { font-size: 14px; font-weight: 700; color: var(--text); }
+#mo-cur { font-size: 30px; font-weight: 800; color: var(--text); padding: 0 6px; border-radius: 8px; letter-spacing: -0.5px; }
+#mo-cur.up { color: var(--up); }
+#mo-cur.down { color: var(--down); }
+#mo-chg { margin-left: auto; font-size: 16px; font-weight: 700; color: var(--text); }
+#mo-chg.up { color: var(--up); }
+#mo-chg.down { color: var(--down); }
+#mo-price:empty { display: none; }
+.flash-up { animation: mo-flash-up .8s ease-out; }
+.flash-down { animation: mo-flash-down .8s ease-out; }
+@keyframes mo-flash-up { from { background: color-mix(in srgb, var(--up) 25%, transparent); } }
+@keyframes mo-flash-down { from { background: color-mix(in srgb, var(--down) 25%, transparent); } }
