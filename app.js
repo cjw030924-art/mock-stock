@@ -248,9 +248,9 @@ const STOCKS = [
   { code: '999710', mk: 'KR', name: '뉴워트', price: 150200, vol: 0.005, rate: 1.21, amt: 4.6, fake: true, logo: 'icons/newert.png' },
   { code: '999720', mk: 'KR', name: '행복한 다람쥐단', price: 200500, vol: 0.005, rate: 0.85, amt: 3.9, fake: true, logo: 'icons/squirrel.png' },
   { code: '999730', mk: 'KR', name: '모이다', price: 180300, vol: 0.005, rate: -0.66, amt: 3.2, fake: true, logo: 'icons/moida.png' },
-  { code: '999740', mk: 'KR', name: '포켓몬스터', price: 96300, vol: 0.005, rate: 1.48, amt: 5.2, fake: true, logo: 'icons/pokeball.png' },
+  { code: 'PKMN', mk: 'US', name: '포켓몬스터', price: 68.40, vol: 0.005, rate: 1.48, amt: 5.2, fake: true, logo: 'icons/pokeball.png' },
   { code: '999750', mk: 'KR', name: '배틀그라운드', price: 284500, vol: 0.006, rate: -0.92, amt: 6.8, fake: true, logo: 'icons/pubg.png' },
-  { code: '999760', mk: 'KR', name: '라이엇 게임즈', price: 132700, vol: 0.005, rate: 2.15, amt: 4.1, fake: true, logo: 'icons/riot.png' },
+  { code: 'RIOT', mk: 'US', name: '라이엇 게임즈', price: 94.20, vol: 0.005, rate: 2.15, amt: 4.1, fake: true, logo: 'icons/riot.png' },
   // 가상의 청운 계열 일반 종목
   { code: '999670', mk: 'KR', name: '청운건설', price: 12850, vol: 0.005, rate: -1.15, amt: 2.1, fake: true, logo: 'icons/cwu.png' },
   { code: '999680', mk: 'KR', name: '청운화학', price: 38400, vol: 0.004, rate: 0.79, amt: 3.4, fake: true, logo: 'icons/cwu.png' },
@@ -346,6 +346,16 @@ state.volume ||= {};
 if (state.startCash !== START_CASH) {
   state.cash += START_CASH - (state.startCash || 10_000_000);
   state.startCash = START_CASH;
+}
+// 포켓몬스터·라이엇 게임즈를 국내 → 해외로 옮김: 보유·주문·최근 본 기록을 새 코드로 (원 → 달러)
+for (const [from, to] of [['999740', 'PKMN'], ['999760', 'RIOT']]) {
+  const h = state.holdings[from];
+  if (h) { state.holdings[to] = { ...h, avg: h.avg / FX }; delete state.holdings[from]; }
+  (state.orders || []).forEach(o => { if (o.code === from) { o.code = to; o.price = Math.round(o.price / FX * 100) / 100; } });
+  state.recent = state.recent.map(c => (c === from ? to : c));
+  state.realized.forEach(r => { if (r.code === from) { r.code = to; r.mk = 'US'; } }); // 판매 수익 금액(원화)은 그대로
+  if (state.sel === from) state.sel = to;
+  delete state.prices[from]; delete state.volume[from];
 }
 // 저장: lite 종목은 내가 본(최근 본·선택)·보유·주문한 것만 저장하고 나머지는 다음에 목록 기준가로 다시 시작
 function save() {
