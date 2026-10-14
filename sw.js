@@ -1,7 +1,7 @@
 ﻿// 서비스 워커: 항상 네트워크에서 최신 파일을 먼저 받고, 오프라인일 때만 저장해 둔 파일 사용
 // 업데이트할 때 index.html 의 ?v= 숫자와 함께 CACHE 이름도 올려 주세요
-const CACHE = 'jh-stock-v21';
-const CORE = ['./', 'index.html', 'style.css?v=21', 'app.js?v=21', 'stocks-data.js?v=21', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'jh-stock-v22';
+const CORE = ['./', 'index.html', 'style.css?v=22', 'app.js?v=22', 'stocks-data.js?v=22', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));

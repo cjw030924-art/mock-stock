@@ -397,3 +397,6 @@ main {
 .flash-down { animation: mo-flash-down .8s ease-out; }
 @keyframes mo-flash-up { from { background: color-mix(in srgb, var(--up) 25%, transparent); } }
 @keyframes mo-flash-down { from { background: color-mix(in srgb, var(--down) 25%, transparent); } }
+
+/* 해외 종목 현재가 옆 원화 환산 */
+#d-price .krw { font-size: 14px; font-weight: 600; color: var(--muted); margin-left: 6px; }

@@ -1269,7 +1269,8 @@ function render() {
   $('d-name').textContent = s.name;
   if ($('d-logo').dataset.code !== c) { $('d-logo').innerHTML = logoHTML(c); $('d-logo').dataset.code = c; }
   $('d-code').textContent = `${subOf(c)} · ${s.market || (s.mk === 'US' ? '해외' : '국내')}`;
-  $('d-price').textContent = px(c, p);
+  // 해외 종목은 달러 옆에 원화 환산 가격을 작게
+  $('d-price').innerHTML = px(c, p) + (isUS(c) ? `<small class="krw">${won(toKRW(c, p))}</small>` : '');
   $('d-price').className = 'big ' + cls(ch);
   $('d-change').textContent = `${pct(ch)} (${diff > 0 ? '+' : diff < 0 ? '-' : ''}${px(c, Math.abs(diff))})`;
   $('d-change').className = cls(ch);
