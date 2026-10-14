@@ -248,9 +248,9 @@ const STOCKS = [
   { code: '999710', mk: 'KR', name: '뉴워트', price: 150200, vol: 0.005, rate: 1.21, amt: 4.6, fake: true, logo: 'icons/newert.png' },
   { code: '999720', mk: 'KR', name: '행복한 다람쥐단', price: 200500, vol: 0.005, rate: 0.85, amt: 3.9, fake: true, logo: 'icons/squirrel.png' },
   { code: '999730', mk: 'KR', name: '모이다', price: 180300, vol: 0.005, rate: -0.66, amt: 3.2, fake: true, logo: 'icons/moida.png' },
-  { code: '999740', mk: 'KR', name: '포켓몬스터', price: 96300, vol: 0.005, rate: 1.48, amt: 5.2, fake: true, logo: 'icons/pokemon.png' },
+  { code: '999740', mk: 'KR', name: '포켓몬스터', price: 96300, vol: 0.005, rate: 1.48, amt: 5.2, fake: true, logo: 'icons/pokeball.png' },
   { code: '999750', mk: 'KR', name: '배틀그라운드', price: 284500, vol: 0.006, rate: -0.92, amt: 6.8, fake: true, logo: 'icons/pubg.png' },
-  { code: '999760', mk: 'KR', name: '라이엇', price: 132700, vol: 0.005, rate: 2.15, amt: 4.1, fake: true, logo: 'icons/riot.png' },
+  { code: '999760', mk: 'KR', name: '라이엇 게임즈', price: 132700, vol: 0.005, rate: 2.15, amt: 4.1, fake: true, logo: 'icons/riot.png' },
   // 가상의 청운 계열 일반 종목
   { code: '999670', mk: 'KR', name: '청운건설', price: 12850, vol: 0.005, rate: -1.15, amt: 2.1, fake: true, logo: 'icons/cwu.png' },
   { code: '999680', mk: 'KR', name: '청운화학', price: 38400, vol: 0.004, rate: 0.79, amt: 3.4, fake: true, logo: 'icons/cwu.png' },
