@@ -715,6 +715,10 @@ function editOrder(id) {
 let order = null; // { side, code, edit? }
 const moQty = () => Math.floor(Number($('mo-qty').value) || 0);
 const moPrice = () => { const v = Number($('mo-px').value); return v > 0 ? round(order.code, v) : 0; };
+// 주문 수정 중이면 그 주문에 묶인 현금·수량은 돌려받는 것으로 보고 계산
+const moCash = () => state.cash + (order.edit?.side === 'buy' ? toKRW(order.edit.code, order.edit.price) * order.edit.n : 0);
+const moSellable = () => sellable(order.code) + (order.edit?.side === 'sell' ? order.edit.n : 0);
+const moMaxBuy = p => Math.floor(moCash() / toKRW(order.code, p));
 function openOrder(side, price, code = state.sel, edit = null) {
   order = { side, code, edit };
   $('mo-px').value = price ?? last(code);
@@ -762,10 +766,10 @@ function renderOrder() {
     : `현재가가 ${px(code, p)} ${buy ? '이하로 내려오면' : '이상으로 오르면'} 체결됩니다.`;
   $('mo-hint').className = 'mo-hint ' + (now ? 'now' : 'wait');
   $('mo-avail').textContent = buy
-    ? `이 가격에 최대 ${p ? maxBuy(code, p) : 0}주 (주문 가능 현금 ${won(state.cash)})`
-    : `팔 수 있는 수량 ${sellable(code)}주${pendingSell(code) ? ` (보유 ${heldQty(code)}주 · 미체결 매도 ${pendingSell(code)}주)` : ''}`;
+    ? `이 가격에 최대 ${p ? moMaxBuy(p) : 0}주 (주문 가능 현금 ${won(moCash())})`
+    : `팔 수 있는 수량 ${moSellable()}주${pendingSell(code) ? ` (보유 ${heldQty(code)}주 · 미체결 매도 ${pendingSell(code)}주)` : ''}`;
   $('mo-total').textContent = won(krw);
-  $('mo-after').textContent = buy ? `주문 후 주문 가능 현금 ${won(state.cash - krw)}` : `체결되면 현금 +${won(krw)}`;
+  $('mo-after').textContent = buy ? `주문 후 주문 가능 현금 ${won(moCash() - krw)}` : `체결되면 현금 +${won(krw)}`;
 }
 function submitOrder() {
   const ed = order.edit;
@@ -1323,7 +1327,7 @@ document.querySelectorAll('#modal .quick [data-q]').forEach(b => b.addEventListe
   renderOrder();
 }));
 $('mo-max').addEventListener('click', () => {
-  $('mo-qty').value = order.side === 'buy' ? maxBuy(order.code, moPrice() || last(order.code)) : Math.max(0, sellable(order.code));
+  $('mo-qty').value = order.side === 'buy' ? moMaxBuy(moPrice() || last(order.code)) : Math.max(0, moSellable());
   $('mo-err').textContent = '';
   renderOrder();
 });
