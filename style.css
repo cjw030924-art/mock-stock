@@ -450,3 +450,6 @@ main {
   .top-login.in { max-width: 120px; padding: 0 10px 0 3px; }
   .top-login .avatar { width: 28px; height: 28px; }
 }
+#pf-av { cursor: pointer; }
+.pf-tip { font-size: 12px; margin: 4px 0 0; }
+.modal.center .sheet.drop { outline: 2px dashed var(--accent); outline-offset: -8px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }

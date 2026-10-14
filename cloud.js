@@ -181,6 +181,7 @@ function openProfile() {
         <div class="pf-photo"><span id="pf-av"></span>
           <span class="pf-photo-btns"><button id="pf-pick" class="ghost">사진 바꾸기</button><button id="pf-del" class="ghost">사진 삭제</button></span>
           <input id="pf-file" type="file" accept="image/*" hidden></div>
+        <p class="pf-tip muted">사진을 이 창에 끌어다 놓아도 바뀌어요.</p>
         <label class="mo-label" for="pf-nick">닉네임 (2~12자)</label>
         <input id="pf-nick" class="pf-nick" maxlength="12">
         <p id="pf-err" class="msg up"></p>
@@ -191,10 +192,18 @@ function openProfile() {
     $('pf-cancel').addEventListener('click', closeProfile);
     $('pf-pick').addEventListener('click', () => $('pf-file').click());
     $('pf-del').addEventListener('click', () => { prof.photo = ''; drawProfile(); });
-    $('pf-file').addEventListener('change', async e => {
-      const f = e.target.files[0]; e.target.value = '';
-      if (!f) return;
-      try { prof.photo = await shrinkPhoto(f); drawProfile(); } catch { $('pf-err').textContent = '이 사진은 쓸 수 없습니다. 다른 사진을 골라 주세요.'; }
+    $('pf-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; usePhoto(f); });
+    $('pf-av').addEventListener('click', () => $('pf-file').click());
+    // 사진을 창 위로 끌어다 놓아도 바뀜
+    const sheet = m.querySelector('.sheet');
+    let depth = 0; // 안쪽 요소를 지날 때 dragleave 가 여러 번 와서 깊이로 셈
+    const hasFile = e => [...(e.dataTransfer?.types || [])].includes('Files');
+    sheet.addEventListener('dragenter', e => { if (!hasFile(e)) return; e.preventDefault(); depth++; sheet.classList.add('drop'); });
+    sheet.addEventListener('dragover', e => { if (hasFile(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+    sheet.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; sheet.classList.remove('drop'); } });
+    sheet.addEventListener('drop', e => {
+      e.preventDefault(); depth = 0; sheet.classList.remove('drop');
+      usePhoto([...e.dataTransfer.files].find(f => f.type.startsWith('image/')) || e.dataTransfer.files[0]);
     });
     $('pf-nick').addEventListener('input', drawProfile);
     $('pf-nick').addEventListener('keydown', e => { if (e.key === 'Enter') saveProfile(); });
@@ -205,6 +214,12 @@ function openProfile() {
   $('pf-err').textContent = '';
   m.hidden = false;
   drawProfile();
+}
+async function usePhoto(f) {
+  if (!f || !prof) return;
+  if (!f.type.startsWith('image/')) { $('pf-err').textContent = '사진 파일만 쓸 수 있습니다.'; return; }
+  try { prof.photo = await shrinkPhoto(f); $('pf-err').textContent = ''; drawProfile(); }
+  catch { $('pf-err').textContent = '이 사진은 쓸 수 없습니다. 다른 사진을 골라 주세요.'; }
 }
 function drawProfile() {
   $('pf-av').innerHTML = avatar($('pf-nick').value.trim() || cloud.nick, prof.photo);
