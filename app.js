@@ -1238,9 +1238,12 @@ function render() {
   if (state.page === 'mine') {
     $('m-total').textContent = `${won(total)}`;
     $('m-total').className = cls(ret);
-    $('m-value').textContent = won(value);
+    // 총 수익 = 총 자산 − 시작 자금 (판 주식 수익 + 보유 주식 손익 모두 포함)
+    const profit = total - START_CASH;
+    $('m-profit').textContent = `${profit > 0 ? '+' : ''}${won(profit)} (${pct(ret)})`;
+    $('m-profit').className = cls(profit);
     $('m-cash').textContent = won(state.cash);
-    $('m-pnl').textContent = `${won(pnl)} (${pct(ret)})`;
+    $('m-pnl').textContent = `${won(pnl)}${cost ? ` (${pct((value / cost - 1) * 100)})` : ''}`;
     $('m-pnl').className = cls(pnl);
     fillList($('hold-list'), holds.join(''));
     $('hold-empty').hidden = holds.length > 0;
