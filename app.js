@@ -246,6 +246,7 @@ const STOCKS = [
   { code: '999550', mk: 'KR', name: 'JH전자', price: 87400, vol: 0.006, rate: 3.24, amt: 24.5, fake: true },
   { code: '999660', mk: 'KR', name: '청운바이오', price: 4185, vol: 0.004, rate: 4.2, amt: 1.3, swing: true, fake: true, logo: 'icons/cwu.png' },
   { code: '999710', mk: 'KR', name: '뉴워트', price: 150200, vol: 0.005, rate: 1.21, amt: 4.6, fake: true, logo: 'icons/newert.png' },
+  { code: '999720', mk: 'KR', name: '행복한 다람쥐단', price: 200500, vol: 0.005, rate: 0.85, amt: 3.9, fake: true, logo: 'icons/squirrel.png' },
   // 가상의 청운 계열 일반 종목
   { code: '999670', mk: 'KR', name: '청운건설', price: 12850, vol: 0.005, rate: -1.15, amt: 2.1, fake: true, logo: 'icons/cwu.png' },
   { code: '999680', mk: 'KR', name: '청운화학', price: 38400, vol: 0.004, rate: 0.79, amt: 3.4, fake: true, logo: 'icons/cwu.png' },
