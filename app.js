@@ -248,6 +248,9 @@ const STOCKS = [
   { code: '999710', mk: 'KR', name: '뉴워트', price: 150200, vol: 0.005, rate: 1.21, amt: 4.6, fake: true, logo: 'icons/newert.png' },
   { code: '999720', mk: 'KR', name: '행복한 다람쥐단', price: 200500, vol: 0.005, rate: 0.85, amt: 3.9, fake: true, logo: 'icons/squirrel.png' },
   { code: '999730', mk: 'KR', name: '모이다', price: 180300, vol: 0.005, rate: -0.66, amt: 3.2, fake: true, logo: 'icons/moida.png' },
+  { code: '999740', mk: 'KR', name: '포켓몬스터', price: 96300, vol: 0.005, rate: 1.48, amt: 5.2, fake: true },
+  { code: '999750', mk: 'KR', name: '배틀그라운드', price: 284500, vol: 0.006, rate: -0.92, amt: 6.8, fake: true },
+  { code: '999760', mk: 'KR', name: '라이엇', price: 132700, vol: 0.005, rate: 2.15, amt: 4.1, fake: true },
   // 가상의 청운 계열 일반 종목
   { code: '999670', mk: 'KR', name: '청운건설', price: 12850, vol: 0.005, rate: -1.15, amt: 2.1, fake: true, logo: 'icons/cwu.png' },
   { code: '999680', mk: 'KR', name: '청운화학', price: 38400, vol: 0.004, rate: 0.79, amt: 3.4, fake: true, logo: 'icons/cwu.png' },
@@ -963,6 +966,17 @@ function levOf(code) {
 const INVERSE = ['SOXS', 'SQQQ', 'ETHD', 'GDXD'];
 // 가상 종목 전용 로고 (배경 그라데이션 + 흰색 심볼, 32x32 기준)
 const FAKE_LOGOS = {
+  '999740': ['#e3350d', '#ff7a45', // 포켓몬스터: 몬스터볼
+    `<circle cx="16" cy="16" r="11" fill="#fff"/><path d="M5 16a11 11 0 0 1 22 0z" fill="#e3350d"/>
+     <circle cx="16" cy="16" r="11" fill="none" stroke="#222" stroke-width="1.8"/><path d="M5 16h22" stroke="#222" stroke-width="2"/>
+     <circle cx="16" cy="16" r="3.6" fill="#fff" stroke="#222" stroke-width="1.8"/>`],
+  '999750': ['#3a2f12', '#f2a900', // 배틀그라운드: 프라이팬
+    `<circle cx="13" cy="14" r="8.5" fill="#2b2b2b" stroke="#fff" stroke-width="1.8"/><circle cx="13" cy="14" r="5.5" fill="#444"/>
+     <path d="M19 20l7.5 7.5" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/>`],
+  '999760': ['#7a0a0a', '#e8323c', // 라이엇: 주먹
+    `<g fill="#fff"><rect x="9" y="8" width="4.2" height="9" rx="2"/><rect x="13.6" y="7" width="4.2" height="10" rx="2"/>
+     <rect x="18.2" y="8" width="4.2" height="9" rx="2"/><path d="M8 15h16v5a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z"/>
+     <rect x="12" y="25" width="8" height="4" rx="1"/></g>`],
   NQHX: ['#0f2b5b', '#1fb6d6', // 넥서스 퀀텀: 원자 궤도
     `<g fill="none" stroke="#fff" stroke-width="1.7"><ellipse cx="16" cy="16" rx="11.5" ry="4.4"/>
      <ellipse cx="16" cy="16" rx="11.5" ry="4.4" transform="rotate(60 16 16)"/><ellipse cx="16" cy="16" rx="11.5" ry="4.4" transform="rotate(120 16 16)"/></g>
