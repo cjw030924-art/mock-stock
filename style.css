@@ -416,3 +416,7 @@ main {
 .rank .rv { text-align: right; display: flex; flex-direction: column; }
 .rank .rv small { font-size: 12px; }
 #rank-msg { font-size: 13px; }
+.acc-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; max-width: 360px; }
+.acc-form input { padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
+.acc-switch { font-size: 13px; color: var(--muted); }
+.link { background: none; color: var(--accent); padding: 0; font-weight: 700; }
