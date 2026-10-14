@@ -94,7 +94,22 @@ async function pushCloud() {
   } catch { return false; }
 }
 
+// 우측 상단 버튼: 로그아웃 상태면 "로그인", 로그인 상태면 내 사진·닉네임 → 누르면 내 주식의 내 계정으로
+function renderTopLogin() {
+  const b = $('top-login');
+  b.hidden = !cloud.ready;
+  b.classList.toggle('in', !!cloud.user);
+  b.innerHTML = cloud.user ? `${avatar(cloud.nick, cloud.photo)}<span>${esc(cloud.nick || '…')}</span>` : '로그인';
+}
+$('top-login').addEventListener('click', () => {
+  if (document.body.classList.contains('detail-open')) history.back(); // 폰에서 종목 상세가 열려 있으면 닫고
+  state.page = 'mine'; save(); render(); watchRank();
+  $('account').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (!cloud.user) setTimeout(() => $('acc-id')?.focus({ preventScroll: true }), 300);
+});
+
 function renderAccount() {
+  renderTopLogin();
   const box = $('account');
   if (!window.FIREBASE_CONFIG) {
     box.innerHTML = '<p class="muted">로그인·순위 기능은 아직 준비 중입니다. 지금은 이 기기에만 저장돼요.</p>';

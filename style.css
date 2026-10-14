@@ -437,3 +437,16 @@ main {
   border: 1px solid var(--line); background: var(--bg); color: var(--text); }
 .pf-ok { background: var(--accent); }
 .pf-ok:disabled { opacity: .6; }
+
+/* 우측 상단 로그인 버튼 */
+.top-login { height: 40px; padding: 0 16px; border-radius: 20px; background: var(--accent); color: #fff; font-weight: 700; flex: none;
+  display: inline-flex; align-items: center; gap: 6px; }
+.top-login[hidden] { display: none; }
+.top-login.in { background: var(--bg); color: var(--text); border: 1px solid var(--line); padding: 0 12px 0 4px; max-width: 160px; }
+.top-login.in span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-login .avatar { width: 30px; height: 30px; font-size: 13px; }
+@media (max-width: 760px) {
+  .top-login { height: 36px; padding: 0 12px; font-size: 14px; }
+  .top-login.in { max-width: 120px; padding: 0 10px 0 3px; }
+  .top-login .avatar { width: 28px; height: 28px; }
+}
